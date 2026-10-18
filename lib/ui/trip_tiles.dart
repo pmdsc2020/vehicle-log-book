@@ -201,7 +201,8 @@ class TripDetail extends StatelessWidget {
     }
     final trip = t;
     final settings = state.settings;
-    final flags = tripFlags(trip, settings);
+    // Late entry, meter reset and approval each get their own note below. Show the rest as pills.
+    final flags = tripFlags(trip, settings).where((f) => f == 'Photo not fresh' || f == 'High km').toList();
     final cancelled = trip.status == 'cancelled';
     final open = trip.status == 'open';
     final end = trip.end;
@@ -230,30 +231,27 @@ class TripDetail extends StatelessWidget {
         ),
         const SizedBox(height: 16),
         RouteLine(from: trip.from, to: trip.to, large: true, toLines: 3),
-        const SizedBox(height: 18),
-        Surface(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          color: cs.surfaceContainerLow,
-          child: Row(
-            children: [
-              Expanded(
-                child: StatCell(
-                  label: 'km',
-                  value: cancelled ? '0' : (trip.km == null ? '—' : fmtKm(trip.km!)),
+        if (!cancelled && !open) ...[
+          const SizedBox(height: 18),
+          Surface(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            color: cs.surfaceContainerLow,
+            child: Row(
+              children: [
+                Expanded(child: StatCell(label: 'km', value: trip.km == null ? '—' : fmtKm(trip.km!))),
+                Expanded(
+                  child: StatCell(
+                    label: 'at ₹${_num(settings.rate)}/km',
+                    value: trip.km == null ? '—' : fmtRs(trip.km! * settings.rate),
+                  ),
                 ),
-              ),
-              Expanded(
-                child: StatCell(
-                  label: 'at ₹${_num(settings.rate)}/km',
-                  value: (cancelled || trip.km == null) ? '—' : fmtRs(trip.km! * settings.rate),
-                ),
-              ),
-              Expanded(child: StatCell(label: 'on the road', value: duration ?? '—')),
-            ],
+                Expanded(child: StatCell(label: 'on the road', value: duration ?? '—')),
+              ],
+            ),
           ),
-        ),
+        ],
         if (cancelled && trip.cancel != null) ...[
-          const SizedBox(height: 12),
+          const SizedBox(height: 18),
           _Callout(
             icon: Icons.block,
             title: 'Cancelled',

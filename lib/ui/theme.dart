@@ -1,5 +1,3 @@
-import 'dart:ui' show FontFeature;
-
 import 'package:flutter/material.dart';
 
 /// Colour tokens. The one dark object in the app is the odometer drum.
@@ -19,6 +17,11 @@ class AppColors {
   static const onDrumFaint = Color(0x5CF2F6F4); // 36%
   static const drumStroke = Color(0x1AFFFFFF); // 10%
   static const drumTrack = Color(0x24FFFFFF); // 14%
+}
+
+extension AmberText on ColorScheme {
+  /// Amber that stays readable as text: the bright amber on dark, a deeper amber on light.
+  Color get amberText => brightness == Brightness.dark ? AppColors.amber : const Color(0xFF8A5A00);
 }
 
 const String kFont = 'BarlowSC';

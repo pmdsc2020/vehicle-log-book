@@ -492,6 +492,8 @@ class _RoutePainter extends CustomPainter {
 // ------------------------------------------------------------------ ledger
 
 /// A label and a figure joined by a dotted leader, like a line in a log book.
+/// The dots run behind the whole row and the text sits on a matching background,
+/// so a long label wraps instead of overflowing, even at large text sizes.
 class LedgerRow extends StatelessWidget {
   final String label;
   final String value;
@@ -506,20 +508,37 @@ class LedgerRow extends StatelessWidget {
     final tt = Theme.of(context).textTheme;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 7),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
+      child: Stack(
         children: [
-          Flexible(
-            flex: 0,
-            child: Text(label, style: (strong ? tt.titleMedium : tt.bodyMedium)),
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 5,
+            height: 2,
+            child: CustomPaint(painter: _DotsPainter(cs.outlineVariant)),
           ),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.only(left: 8, right: 8, bottom: 5),
-              child: CustomPaint(size: const Size(double.infinity, 2), painter: _DotsPainter(cs.outlineVariant)),
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Flexible(
+                child: Container(
+                  color: cs.surface,
+                  padding: const EdgeInsets.only(right: 8),
+                  child: Text(label, style: strong ? tt.titleMedium : tt.bodyMedium),
+                ),
+              ),
+              Container(
+                color: cs.surface,
+                padding: const EdgeInsets.only(left: 8),
+                child: Text(
+                  value,
+                  style: numStyle(strong ? 24 : 18,
+                      weight: strong ? FontWeight.w700 : FontWeight.w600, color: valueColor ?? cs.onSurface),
+                ),
+              ),
+            ],
           ),
-          Text(value, style: numStyle(strong ? 24 : 18, weight: strong ? FontWeight.w700 : FontWeight.w600, color: valueColor ?? cs.onSurface)),
         ],
       ),
     );
@@ -602,10 +621,7 @@ class _Rail extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
         height: 3,
-        decoration: BoxDecoration(
-          color: show ? (on ? color : off) : Colors.transparent,
-          borderRadius: BorderRadius.circular(2),
-        ),
+        color: show ? (on ? color : off) : Colors.transparent,
       );
 }
 
@@ -677,7 +693,11 @@ class StatCell extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(value, style: numStyle(26, weight: FontWeight.w700, color: color ?? cs.onSurface)),
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerLeft,
+          child: Text(value, style: numStyle(26, weight: FontWeight.w700, color: color ?? cs.onSurface)),
+        ),
         const SizedBox(height: 4),
         Text(label, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
       ],

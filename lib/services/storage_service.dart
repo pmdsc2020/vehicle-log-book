@@ -11,7 +11,6 @@ class StorageService {
   static const _settingsKey = 'settings';
   static const _tripsKey = 'trips';
   static const _monthsKey = 'months';
-  static const _inboxKey = 'inbox';
   static const _metaKey = 'meta';
 
   late SharedPreferences _prefs;

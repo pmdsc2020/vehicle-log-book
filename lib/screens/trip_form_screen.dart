@@ -1,5 +1,3 @@
-import 'dart:typed_data';
-
 import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -876,7 +874,7 @@ class _TripFormScreenState extends State<TripFormScreen> {
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    'Started ${DateFormat('d MMM, h:mm a').format(started).toLowerCase()}',
+                    'Started ${DateFormat('d MMM').format(started)}, ${DateFormat('h:mm a').format(started).toLowerCase()}',
                     style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,

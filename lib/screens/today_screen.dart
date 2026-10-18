@@ -154,7 +154,11 @@ class _MonthHero extends StatelessWidget {
 
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
-      decoration: BoxDecoration(color: AppColors.drum, borderRadius: BorderRadius.circular(24)),
+      decoration: BoxDecoration(
+        color: AppColors.drum,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: AppColors.drumStroke),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -271,8 +275,6 @@ class _OpenTripCard extends StatelessWidget {
                 child: Text(
                   'since ${fmtTime(trip.start.at)}  ·  ${fmtElapsed(elapsed.isNegative ? Duration.zero : elapsed)}',
                   style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],

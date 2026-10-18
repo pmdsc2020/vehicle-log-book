@@ -81,7 +81,7 @@ jobs:
         run: |
           if [ -f test.log ]; then
             echo "::notice title=flutter test::$(tail -3 test.log | tr '\n' ' ' | cut -c1-300)"
-            msg=$( { grep -E "Error:|error:|overflowed|EXCEPTION|Expected:|Actual:|Some tests failed|isn't defined|isn't a" test.log | cut -c1-260 | head -40; } || true )
+            msg=$( { grep -E "Error:|error:|Expected:|Actual:|Some tests failed|isn't defined|isn't a" test.log | cut -c1-260 | head -20; grep -E -A2 "overflowed by|relevant error-causing widget" test.log | cut -c1-260 | head -30; } || true )
             if [ -n "$msg" ]; then
               msg=$(printf '%s' "$msg" | sed 's/%/%25/g' | sed ':a;N;$!ba;s/\n/%0A/g')
               echo "::error title=flutter test::$msg"

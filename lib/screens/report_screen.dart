@@ -73,7 +73,7 @@ class _ReportScreenState extends State<ReportScreen> {
               LedgerRow(
                 label: 'Above the limit',
                 value: '${fmtKm(sum.excess)} km',
-                valueColor: sum.excess > 0 ? cs.tertiary : null,
+                valueColor: sum.excess > 0 ? cs.amberText : null,
               ),
               const SizedBox(height: 4),
               Divider(color: cs.outlineVariant),

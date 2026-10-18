@@ -305,7 +305,7 @@ Future<void> _type(WidgetTester tester, int index, String text) async {
   final f = find.byType(TextField);
   if (f.evaluate().length > index) {
     await tester.enterText(f.at(index), text);
-    await tester.pump();
+    await tester.pumpAndSettle();
   }
 }
 
