@@ -5,9 +5,8 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
-# The screenshot step pushes PNGs of every screen to a throwaway branch, ci-screenshots.
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   build:
@@ -46,7 +45,7 @@ jobs:
             echo "::notice title=flutter analyze::$msg"
           fi
 
-      # Renders every screen at phone size. Fails on any layout overflow.
+      # Renders every screen at phone size. Reports any layout overflow. Does not block the APK.
       - name: Screens test
         if: always()
         continue-on-error: true
@@ -61,20 +60,14 @@ jobs:
           echo "fallback font: $FALLBACK_FONT"
           flutter test test/shots_test.dart 2>&1 | tee test.log
 
-      - name: Publish screenshots
+      - name: Upload screen images
         if: always()
-        continue-on-error: true
-        run: |
-          if ls shots/*.png >/dev/null 2>&1; then
-            rm -rf /tmp/shotrepo && mkdir /tmp/shotrepo && cp shots/*.png /tmp/shotrepo/
-            cd /tmp/shotrepo
-            git init -q -b ci-screenshots
-            git config user.name "ci"
-            git config user.email "ci@users.noreply.github.com"
-            git add .
-            git commit -q -m "Screenshots for ${GITHUB_SHA}"
-            git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" ci-screenshots
-          fi
+        uses: actions/upload-artifact@v4
+        with:
+          name: screens
+          path: shots/*.png
+          if-no-files-found: ignore
+          retention-days: 7
 
       - name: Show test results on the run summary
         if: always()
