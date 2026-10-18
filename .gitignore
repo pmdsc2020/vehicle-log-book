@@ -11,3 +11,7 @@ android/app/profile
 android/app/release
 *.iml
 .idea/
+shots/
+test.log
+analyze.log
+build.log

@@ -1,3 +1,6 @@
+import 'dart:io';
+
+import 'package:flutter/material.dart' show ThemeMode;
 import 'package:flutter/foundation.dart';
 import '../models/profile.dart';
 import '../models/trip.dart';
@@ -12,8 +15,8 @@ class AppState extends ChangeNotifier {
   Map<String, dynamic> meta = {};
   bool ready = false;
 
-  Future<void> init() async {
-    await storage.init();
+  Future<void> init({Directory? photosDir}) async {
+    await storage.init(photosDir: photosDir);
     profile = storage.getProfile();
     settings = storage.getSettings();
     trips = storage.getTrips();
@@ -70,9 +73,39 @@ class AppState extends ChangeNotifier {
     await storage.saveMeta(meta);
   }
 
+  /// Light, dark or follow the phone. Kept with the other remembered choices.
+  ThemeMode get themeMode {
+    switch (meta['theme']) {
+      case 'light':
+        return ThemeMode.light;
+      case 'dark':
+        return ThemeMode.dark;
+      default:
+        return ThemeMode.system;
+    }
+  }
+
+  Future<void> setThemeMode(String mode) async {
+    meta = {...meta, 'theme': mode};
+    await storage.saveMeta(meta);
+    notifyListeners();
+  }
+
+  /// A locked trip can still get notes. Notes are not part of the seal.
+  Future<void> addNote(Trip t, String text) async {
+    t.notes = [...t.notes, Note(at: nowIso(), text: text)];
+    await addOrUpdateTrip(t);
+  }
+
   List<Trip> tripsOfMonth(String month) =>
       trips.where((t) => t.month == month).toList()
         ..sort((a, b) => a.date.compareTo(b.date));
+
+  /// Newest trips first, across all months.
+  List<Trip> recentTrips(int n) {
+    final all = trips.where((t) => t.status != 'cancelled').toList()..sort((a, b) => tripOrder(b, a));
+    return all.length > n ? all.sublist(0, n) : all;
+  }
 
   Trip? openTrip() => trips.cast<Trip?>().firstWhere(
         (t) => t?.status == 'open',

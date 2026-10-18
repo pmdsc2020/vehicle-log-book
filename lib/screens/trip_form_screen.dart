@@ -11,6 +11,8 @@ import '../models/profile.dart';
 import '../models/trip.dart';
 import '../services/app_state.dart';
 import '../services/trip_rules.dart';
+import '../ui/theme.dart';
+import '../ui/widgets.dart';
 
 /// One odometer photo that has been taken but not saved yet.
 class _Shot {
@@ -372,7 +374,7 @@ class _TripFormScreenState extends State<TripFormScreen> {
     final dist = _mode == 'start' ? null : (ckm! - okm!);
     final summary = StringBuffer()
       ..writeln('Date: ${fmtDate(date)}${lateInfo != null ? '  (late entry)' : ''}')
-      ..writeln('Route: $from → $to')
+      ..writeln('Route: $from to $to')
       ..writeln('Vehicle: $vehicle')
       ..writeln('Opening: ${fmtKm(okm ?? 0)} km');
     if (dist != null) {
@@ -511,6 +513,31 @@ class _TripFormScreenState extends State<TripFormScreen> {
 
   // ------------------------------------------------------------ widgets
 
+  String _rateStr(double r) => r == r.roundToDouble() ? r.round().toString() : r.toStringAsFixed(2);
+
+  Widget _section(String title, List<Widget> children, {String? subtitle}) {
+    final cs = Theme.of(context).colorScheme;
+    final tt = Theme.of(context).textTheme;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Surface(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title, style: tt.titleMedium),
+            if (subtitle != null) ...[
+              const SizedBox(height: 2),
+              Text(subtitle, style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+            ],
+            const SizedBox(height: 14),
+            ...children,
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _field(
     String key,
     String label,
@@ -520,9 +547,10 @@ class _TripFormScreenState extends State<TripFormScreen> {
     int lines = 1,
     bool digits = false,
     bool enabled = true,
+    bool big = false,
   }) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.only(bottom: 14),
       child: TextField(
         controller: c,
         enabled: enabled,
@@ -530,13 +558,15 @@ class _TripFormScreenState extends State<TripFormScreen> {
         maxLines: lines,
         keyboardType: digits ? TextInputType.number : TextInputType.text,
         inputFormatters: digits ? <TextInputFormatter>[FilteringTextInputFormatter.digitsOnly] : null,
+        style: big ? numStyle(28, weight: FontWeight.w600, color: Theme.of(context).colorScheme.onSurface) : null,
         onChanged: (_) => setState(() => _errs.remove(key)),
         decoration: InputDecoration(
           labelText: label,
           hintText: hint,
           helperText: helper,
+          helperMaxLines: 2,
           errorText: _errs[key],
-          border: const OutlineInputBorder(),
+          errorMaxLines: 3,
         ),
       ),
     );
@@ -545,65 +575,142 @@ class _TripFormScreenState extends State<TripFormScreen> {
   Widget _dropdown(String key, String label, List<String> items, String? value, ValueChanged<String?> onChanged) {
     final shown = (value != null && items.contains(value)) ? value : null;
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.only(bottom: 14),
       child: DropdownButtonFormField<String>(
         value: shown,
         isExpanded: true,
-        decoration: InputDecoration(
-          labelText: label,
-          errorText: _errs[key],
-          border: const OutlineInputBorder(),
-        ),
+        decoration: InputDecoration(labelText: label, errorText: _errs[key], errorMaxLines: 3),
         items: items.map((s) => DropdownMenuItem<String>(value: s, child: Text(s, overflow: TextOverflow.ellipsis))).toList(),
         onChanged: onChanged,
       ),
     );
   }
 
+  /// A date or time that opens a picker. Looks like a field, reads like a label and a value.
+  Widget _pickTile(String label, String value, IconData icon, VoidCallback? onTap, {String? error}) {
+    final cs = Theme.of(context).colorScheme;
+    final tt = Theme.of(context).textTheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Material(
+          color: cs.surface,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: BorderSide(color: error != null ? cs.error : cs.outlineVariant, width: error != null ? 2 : 1),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: onTap,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              child: Row(
+                children: [
+                  Icon(icon, size: 22, color: cs.primary),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(label, style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                        Text(value, style: tt.titleSmall),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        if (error != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 4, left: 14),
+            child: Text(error, style: tt.bodySmall?.copyWith(color: cs.error)),
+          ),
+        const SizedBox(height: 14),
+      ],
+    );
+  }
+
   Widget _photoBox(String title, _Shot? shot, bool opening) {
-    final theme = Theme.of(context);
+    final cs = Theme.of(context).colorScheme;
+    final tt = Theme.of(context).textTheme;
     final err = _errs[opening ? 'ophoto' : 'cphoto'];
     final allowGallery = _mode == 'full';
+    final old = shot != null && _isOld(shot);
     return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.only(bottom: 14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('$title *', style: theme.textTheme.labelLarge),
-          const SizedBox(height: 6),
+          Text(title, style: tt.labelLarge),
+          const SizedBox(height: 8),
           if (shot == null)
-            OutlinedButton.icon(
-              onPressed: _busy ? null : () => _pickPhoto(opening, ImageSource.camera),
-              icon: const Icon(Icons.photo_camera),
-              label: const Text('Take photo of the meter'),
+            Material(
+              color: cs.surfaceContainerLow,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+                side: BorderSide(
+                  color: err != null ? cs.error : cs.outline.withAlpha(130),
+                  width: err != null ? 2 : 1.2,
+                ),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                onTap: _busy ? null : () => _pickPhoto(opening, ImageSource.camera),
+                child: SizedBox(
+                  height: 116,
+                  width: double.infinity,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.photo_camera_outlined, size: 32, color: cs.primary),
+                      const SizedBox(height: 6),
+                      Text('Take a photo of the meter', style: tt.labelLarge?.copyWith(color: cs.primary)),
+                    ],
+                  ),
+                ),
+              ),
             )
           else ...[
-            ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: Image.memory(shot.bytes, height: 160, width: double.infinity, fit: BoxFit.cover),
+            Stack(
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(14),
+                  child: Image.memory(shot.bytes, height: 180, width: double.infinity, fit: BoxFit.cover),
+                ),
+                Positioned(
+                  left: 10,
+                  bottom: 10,
+                  child: StatusPill(
+                    old ? 'Not a fresh photo' : 'Photo ready',
+                    kind: old ? PillKind.flag : PillKind.locked,
+                    icon: old ? Icons.warning_amber_rounded : Icons.check_circle,
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 6),
-            Text(
-              _isOld(shot)
-                  ? (allowGallery
+            if (old)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Text(
+                  allowGallery
                       ? 'Not taken on the trip date. It will be marked for checking.'
-                      : 'Older than ${_state.settings.photoMaxAge} minutes. It will be marked for checking.')
-                  : 'Photo ready',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: _isOld(shot) ? theme.colorScheme.error : theme.colorScheme.primary,
+                      : 'Older than ${_state.settings.photoMaxAge} minutes. It will be marked for checking.',
+                  style: tt.bodySmall?.copyWith(color: cs.error),
+                ),
               ),
-            ),
             Row(
               children: [
                 TextButton.icon(
                   onPressed: _busy ? null : () => _pickPhoto(opening, ImageSource.camera),
-                  icon: const Icon(Icons.photo_camera),
+                  icon: const Icon(Icons.photo_camera_outlined),
                   label: const Text('Retake'),
                 ),
                 if (allowGallery)
                   TextButton.icon(
                     onPressed: _busy ? null : () => _pickPhoto(opening, ImageSource.gallery),
-                    icon: const Icon(Icons.photo_library),
+                    icon: const Icon(Icons.photo_library_outlined),
                     label: const Text('Gallery'),
                   ),
               ],
@@ -612,35 +719,88 @@ class _TripFormScreenState extends State<TripFormScreen> {
           if (shot == null && allowGallery)
             TextButton.icon(
               onPressed: _busy ? null : () => _pickPhoto(opening, ImageSource.gallery),
-              icon: const Icon(Icons.photo_library),
+              icon: const Icon(Icons.photo_library_outlined),
               label: const Text('Choose from gallery'),
             ),
           if (err != null)
             Padding(
               padding: const EdgeInsets.only(top: 4),
-              child: Text(err, style: TextStyle(color: theme.colorScheme.error, fontSize: 12)),
+              child: Text(err, style: tt.bodySmall?.copyWith(color: cs.error)),
             ),
         ],
       ),
     );
   }
 
-  Widget _notice(String text, {bool warn = false}) {
-    final scheme = Theme.of(context).colorScheme;
+  Widget _notice(String text, {bool warn = false, IconData icon = Icons.info_outline}) {
+    final cs = Theme.of(context).colorScheme;
+    final tt = Theme.of(context).textTheme;
+    final bg = warn ? cs.tertiaryContainer : cs.surfaceContainer;
+    final fg = warn ? cs.onTertiaryContainer : cs.onSurface;
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: warn ? scheme.errorContainer : scheme.secondaryContainer,
-        borderRadius: BorderRadius.circular(8),
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(14)),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 22, color: fg),
+          const SizedBox(width: 12),
+          Expanded(child: Text(text, style: tt.bodyMedium?.copyWith(color: fg))),
+        ],
       ),
-      child: Text(text),
+    );
+  }
+
+  Widget _distanceCard(int dist, bool high) {
+    final st = _state.settings;
+    final cs = Theme.of(context).colorScheme;
+    final tt = Theme.of(context).textTheme;
+    final fg = high ? cs.onTertiaryContainer : cs.onPrimaryContainer;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: high ? cs.tertiaryContainer : cs.primaryContainer,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(fmtKm(dist), style: numStyle(40, weight: FontWeight.w700, color: fg)),
+              const SizedBox(width: 6),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 3),
+                child: Text('km', style: tt.titleMedium?.copyWith(color: fg)),
+              ),
+              const Spacer(),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(fmtRs(dist * st.rate), style: numStyle(26, weight: FontWeight.w700, color: fg)),
+                  const SizedBox(height: 3),
+                  Text('at ₹${_rateStr(st.rate)} a km', style: tt.bodySmall?.copyWith(color: fg)),
+                ],
+              ),
+            ],
+          ),
+          if (high) ...[
+            const SizedBox(height: 10),
+            Text('This is a high km trip. The entry will be marked for checking.', style: tt.bodyMedium?.copyWith(color: fg)),
+          ],
+        ],
+      ),
     );
   }
 
   Widget _priorBlock() {
     final st = _state.settings;
+    final cs = Theme.of(context).colorScheme;
+    final tt = Theme.of(context).textTheme;
     final used = usedKm(_state.trips, st, monthOf(_tripDate), _projectName,
         _mode == 'end' ? widget.trip!.id : null);
     final thisKm = _dist ?? 0;
@@ -653,31 +813,33 @@ class _TripFormScreenState extends State<TripFormScreen> {
     intro.write('. Km above the limit are paid only after District Integrator approval. '
         'Record the approval you took before travelling.');
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: Theme.of(context).colorScheme.error),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+        decoration: BoxDecoration(
+          color: cs.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: cs.tertiary, width: 1.5),
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Above the monthly limit', style: Theme.of(context).textTheme.titleSmall),
-            const SizedBox(height: 6),
-            Text(intro.toString()),
-            const SizedBox(height: 12),
+            Row(
+              children: [
+                Icon(Icons.policy_outlined, color: cs.tertiary),
+                const SizedBox(width: 10),
+                Expanded(child: Text('Above the monthly limit', style: tt.titleMedium)),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(intro.toString(), style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant)),
+            const SizedBox(height: 16),
             _field('pby', 'Approval given by', _priorBy, hint: 'Name of District Integrator', enabled: !_priorNone),
             _dropdown('pmode', 'How', priorModes, _priorMode, (v) {
               if (v != null) setState(() => _priorMode = v);
             }),
-            OutlinedButton.icon(
-              onPressed: _priorNone ? null : _pickPriorDate,
-              icon: const Icon(Icons.event),
-              label: Text('Approval date: ${fmtDate(_priorDate)}'),
-            ),
-            const SizedBox(height: 12),
+            _pickTile('Approval date', fmtDate(_priorDate), Icons.event_outlined, _priorNone ? null : _pickPriorDate),
             _field('pref', 'Reference or remark', _priorRef, hint: 'e.g. WhatsApp message 15-10, 10:05', enabled: !_priorNone),
             CheckboxListTile(
               contentPadding: EdgeInsets.zero,
@@ -696,16 +858,79 @@ class _TripFormScreenState extends State<TripFormScreen> {
     );
   }
 
+  Widget _endSummary() {
+    final cs = Theme.of(context).colorScheme;
+    final tt = Theme.of(context).textTheme;
+    final trip = widget.trip!;
+    final started = DateTime.parse(trip.start.at).toLocal();
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Surface(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                const StatusPill('On a trip', kind: PillKind.open),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Started ${DateFormat('d MMM, h:mm a').format(started).toLowerCase()}',
+                    style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            RouteLine(from: trip.from, to: trip.to, large: true, toLines: 2),
+            const SizedBox(height: 14),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(fmtKm(trip.start.km), style: numStyle(28, weight: FontWeight.w700, color: cs.onSurface)),
+                    const SizedBox(height: 4),
+                    Text('opening reading', style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                  ],
+                ),
+                const SizedBox(width: 20),
+                Expanded(
+                  child: Text(
+                    '${trip.project}\n${trip.vehicle}',
+                    style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+                    textAlign: TextAlign.right,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+            if (trip.task.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Text(trip.task, style: tt.bodyMedium),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final st = _state.settings;
+    final cs = Theme.of(context).colorScheme;
+    final tt = Theme.of(context).textTheme;
     final isEnd = _mode == 'end';
     final isStart = _mode == 'start';
     final isFull = _mode == 'full';
     final title = isStart ? 'Start a trip' : (isEnd ? 'End trip' : 'Log a finished trip');
     final dist = _dist;
     final high = dist != null && dist > st.highKm;
-    final fmtDT = DateFormat('dd-MM-yyyy hh:mm a');
 
     String lastHint = '';
     if (!isEnd && _vehicleNo.isNotEmpty) {
@@ -718,147 +943,124 @@ class _TripFormScreenState extends State<TripFormScreen> {
     return Scaffold(
       appBar: AppBar(title: Text(title)),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
         children: [
-          if (isEnd) ...[
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Started ${fmtDT.format(DateTime.parse(widget.trip!.start.at).toLocal())}',
-                        style: Theme.of(context).textTheme.labelMedium),
-                    const SizedBox(height: 4),
-                    Text('${widget.trip!.from} → ${widget.trip!.to}',
-                        style: Theme.of(context).textTheme.titleMedium),
-                    Text('${widget.trip!.project} · ${widget.trip!.vehicle} · ${widget.trip!.task}'),
-                    const SizedBox(height: 4),
-                    Text('Opening: ${fmtKm(widget.trip!.start.km)} km'),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-          ],
-          if (isFull) ...[
-            OutlinedButton.icon(
-              onPressed: _pickDate,
-              icon: const Icon(Icons.event),
-              label: Text('Trip date: ${fmtDate(_date)}'),
-            ),
-            if (_errs['date'] != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 4),
-                child: Text(_errs['date']!, style: TextStyle(color: Theme.of(context).colorScheme.error, fontSize: 12)),
-              ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () => _pickTime(true),
-                    icon: const Icon(Icons.schedule),
-                    label: Text('Left at ${_tStart.format(context)}'),
+          if (isEnd) _endSummary(),
+          if (isFull)
+            _section('When', [
+              _pickTile('Trip date', fmtDate(_date), Icons.event_outlined, _pickDate, error: _errs['date']),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(child: _pickTile('Left at', _tStart.format(context), Icons.schedule, () => _pickTime(true))),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _pickTile('Back at', _tEnd.format(context), Icons.schedule, () => _pickTime(false),
+                        error: _errs['tend']),
                   ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () => _pickTime(false),
-                    icon: const Icon(Icons.schedule),
-                    label: Text('Back at ${_tEnd.format(context)}'),
-                  ),
-                ),
+                ],
+              ),
+              if (_date.compareTo(todayStr()) < 0)
+                _field('late', 'Why is this entry late?', _lateReason,
+                    hint: 'e.g. No network in the village, phone battery empty'),
+            ]),
+          if (!isEnd)
+            _section('Trip', [
+              _dropdown('project', 'Project', st.projects, _project, (v) => setState(() {
+                    _project = v;
+                    _errs.remove('project');
+                  })),
+              if (_hasVehicles)
+                _dropdown(
+                  'vehicle',
+                  'Vehicle',
+                  _state.profile!.vehicles.map((v) => v.no).toList(),
+                  _vehicle,
+                  (v) => setState(() {
+                    _vehicle = v;
+                    _errs.remove('vehicle');
+                  }),
+                )
+              else ...[
+                _field('vehicle', 'Vehicle number', _vehNew, hint: 'MH39 AB 1234'),
+                _dropdown('vtype', 'Vehicle type', const ['Two-wheeler', 'Four-wheeler', 'Other'], _vtypeNew, (v) {
+                  if (v != null) setState(() => _vtypeNew = v);
+                }),
+              ],
+              _field('from', 'From', _from, hint: 'Starting place'),
+              _field('to', 'To (village)', _to, hint: 'Separate villages with commas'),
+              _dropdown('activity', 'Type of work', st.activities, _activity, (v) {
+                if (v != null) setState(() => _activity = v);
+              }),
+              _field('task', 'Task performed', _task,
+                  lines: 2, hint: 'e.g. PIC meeting on net plan; checked farm pond work'),
+            ]),
+          if (!isEnd)
+            _section(
+              'Opening reading',
+              [
+                _field('okm', 'Odometer (km)', _okm, digits: true, big: true, hint: '000000', helper: lastHint),
+                _photoBox('Photo of the meter', _ophoto, true),
               ],
             ),
-            if (_errs['tend'] != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 4),
-                child: Text(_errs['tend']!, style: TextStyle(color: Theme.of(context).colorScheme.error, fontSize: 12)),
-              ),
-            const SizedBox(height: 12),
-            if (_date.compareTo(todayStr()) < 0)
-              _field('late', 'Why is this entry late? *', _lateReason,
-                  hint: 'e.g. No network in the village, phone battery empty'),
-          ],
-          if (!isEnd) ...[
-            _dropdown('project', 'Project *', st.projects, _project, (v) => setState(() {
-                  _project = v;
-                  _errs.remove('project');
-                })),
-            if (_hasVehicles)
-              _dropdown(
-                'vehicle',
-                'Vehicle *',
-                _state.profile!.vehicles.map((v) => v.no).toList(),
-                _vehicle,
-                (v) => setState(() {
-                  _vehicle = v;
-                  _errs.remove('vehicle');
+          if (!isStart)
+            _section(
+              'Closing reading',
+              [
+                _field('ckm', 'Odometer (km)', _ckm, digits: true, big: true, hint: '000000'),
+                _photoBox('Photo of the meter', _cphoto, false),
+                _field('return', 'Returned to (optional)', _returnTo),
+                _field('remarks', 'Remarks (optional)', _remarks),
+              ],
+            ),
+          if (dist != null) _distanceCard(dist, high),
+          if (!isEnd)
+            _section('Meter', [
+              CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                controlAffinity: ListTileControlAffinity.leading,
+                value: _reset,
+                onChanged: (v) => setState(() {
+                  _reset = v ?? false;
+                  _errs.remove('reset');
                 }),
-              )
-            else ...[
-              _field('vehicle', 'Vehicle number *', _vehNew, hint: 'MH39 AB 1234'),
-              _dropdown('vtype', 'Vehicle type', const ['Two-wheeler', 'Four-wheeler', 'Other'], _vtypeNew, (v) {
-                if (v != null) setState(() => _vtypeNew = v);
-              }),
-            ],
-            _field('from', 'From *', _from, hint: 'Starting place'),
-            _field('to', 'To (village) *', _to, hint: 'Separate villages with commas'),
-            _dropdown('activity', 'Type of work', st.activities, _activity, (v) {
-              if (v != null) setState(() => _activity = v);
-            }),
-            _field('task', 'Task performed *', _task,
-                lines: 2, hint: 'e.g. PIC meeting on net plan; checked farm pond work'),
-            _field('okm', 'Opening odometer (km) *', _okm, digits: true, hint: '000000', helper: lastHint),
-            _photoBox('Opening odometer photo', _ophoto, true),
-          ],
-          if (!isStart) ...[
-            _field('ckm', 'Closing odometer (km) *', _ckm, digits: true, hint: '000000'),
-            _photoBox('Closing odometer photo', _cphoto, false),
-            _field('return', 'Returned to', _returnTo),
-            _field('remarks', 'Remarks', _remarks, hint: 'Optional'),
-          ],
-          if (dist != null)
-            _notice(
-              'Distance ${fmtKm(dist)} km · ₹${(dist * st.rate).toStringAsFixed(0)} at ₹${st.rate}/km'
-              '${high ? ' · high km, will be marked for checking' : ''}',
-              warn: high,
-            ),
-          if (!isEnd) ...[
-            CheckboxListTile(
-              contentPadding: EdgeInsets.zero,
-              controlAffinity: ListTileControlAffinity.leading,
-              value: _reset,
-              onChanged: (v) => setState(() {
-                _reset = v ?? false;
-                _errs.remove('reset');
-              }),
-              title: const Text('Meter was reset or replaced'),
-              subtitle: const Text('Tick only if the odometer was changed, and give the reason.'),
-            ),
-            if (_reset) _field('reset', 'Reason *', _resetReason, hint: 'e.g. Speedometer replaced at garage on 10-10'),
-          ],
+                title: const Text('Meter was reset or replaced'),
+                subtitle: const Text('Tick only if the odometer was changed, and give the reason.'),
+              ),
+              if (_reset)
+                _field('reset', 'Reason', _resetReason, hint: 'e.g. Speedometer replaced at garage on 10-10'),
+            ]),
           if (_needPrior) _priorBlock(),
-          Text(
-            isFull
-                ? 'GPS is not recorded for trips logged afterwards.'
-                : 'GPS is not recorded in this version of the app.',
-            style: Theme.of(context).textTheme.bodySmall,
+          Padding(
+            padding: const EdgeInsets.only(bottom: 14, left: 2),
+            child: Text(
+              isFull
+                  ? 'GPS is not recorded for trips logged afterwards.'
+                  : 'GPS is not recorded in this version of the app.',
+              style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+            ),
           ),
-          const SizedBox(height: 12),
-          _notice('After locking, readings, photos and details cannot be changed. You can only add a note.', warn: true),
-          const SizedBox(height: 72),
+          _notice(
+            'After locking, readings, photos and details cannot be changed. You can only add a note.',
+            warn: true,
+            icon: Icons.lock_outline,
+          ),
         ],
       ),
-      bottomNavigationBar: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-          child: FilledButton.icon(
-            onPressed: (_saving || _busy) ? null : _submit,
-            icon: const Icon(Icons.lock),
-            label: Text(isStart ? 'Lock and start' : 'Lock and save'),
+      bottomNavigationBar: DecoratedBox(
+        decoration: BoxDecoration(
+          color: cs.surface,
+          border: Border(top: BorderSide(color: cs.outlineVariant)),
+        ),
+        child: SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+            child: FilledButton.icon(
+              onPressed: (_saving || _busy) ? null : _submit,
+              icon: const Icon(Icons.lock_outline),
+              label: Text(_saving ? 'Saving' : (isStart ? 'Lock and start' : 'Lock and save')),
+            ),
           ),
         ),
       ),

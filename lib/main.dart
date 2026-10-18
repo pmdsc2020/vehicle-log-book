@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import 'screens/app_shell.dart';
 import 'services/app_state.dart';
+import 'ui/theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -16,28 +18,20 @@ void main() async {
 }
 
 class VehicleLogApp extends StatelessWidget {
-  const VehicleLogApp({super.key});
+  /// Tests pass a fixed mode. In the app it follows the choice saved in Settings.
+  final ThemeMode? themeMode;
+
+  const VehicleLogApp({super.key, this.themeMode});
 
   @override
   Widget build(BuildContext context) {
+    final mode = themeMode ?? context.watch<AppState>().themeMode;
     return MaterialApp(
       title: 'Vehicle Log Book',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF0D6B55),
-          brightness: Brightness.light,
-        ),
-        useMaterial3: true,
-        fontFamily: 'Roboto',
-      ),
-      darkTheme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF43B48F),
-          brightness: Brightness.dark,
-        ),
-        useMaterial3: true,
-      ),
+      theme: AppTheme.light(),
+      darkTheme: AppTheme.dark(),
+      themeMode: mode,
       home: const AppShell(),
     );
   }

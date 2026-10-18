@@ -5,6 +5,10 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+# The screenshot step pushes PNGs of every screen to a throwaway branch, ci-screenshots.
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-24.04
@@ -31,6 +35,48 @@ jobs:
         run: |
           set -o pipefail
           flutter analyze --no-fatal-infos --no-fatal-warnings 2>&1 | tee analyze.log
+
+      # Renders every screen at phone size. Fails on any layout overflow.
+      - name: Screens test
+        if: always()
+        continue-on-error: true
+        env:
+          SHOTS: '1'
+        run: |
+          set -o pipefail
+          FR=$(dirname "$(dirname "$(readlink -f "$(which flutter)")")")
+          export MATERIAL_ICONS=$(find "$FR" -name 'MaterialIcons-Regular.otf' -print -quit 2>/dev/null || true)
+          export FALLBACK_FONT=$(fc-match -f '%{file}' 'DejaVu Sans' 2>/dev/null || echo /usr/share/fonts/truetype/dejavu/DejaVuSans.ttf)
+          echo "icons font: $MATERIAL_ICONS"
+          echo "fallback font: $FALLBACK_FONT"
+          flutter test test/shots_test.dart 2>&1 | tee test.log
+
+      - name: Publish screenshots
+        if: always()
+        continue-on-error: true
+        run: |
+          if ls shots/*.png >/dev/null 2>&1; then
+            rm -rf /tmp/shotrepo && mkdir /tmp/shotrepo && cp shots/*.png /tmp/shotrepo/
+            cd /tmp/shotrepo
+            git init -q -b ci-screenshots
+            git config user.name "ci"
+            git config user.email "ci@users.noreply.github.com"
+            git add .
+            git commit -q -m "Screenshots for ${GITHUB_SHA}"
+            git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" ci-screenshots
+          fi
+
+      - name: Show test results on the run summary
+        if: always()
+        run: |
+          if [ -f test.log ]; then
+            echo "::notice title=flutter test::$(tail -3 test.log | tr '\n' ' ' | cut -c1-300)"
+            msg=$( { grep -E "Error:|error:|overflowed|EXCEPTION|Expected:|Actual:|Some tests failed|isn't defined|isn't a" test.log | cut -c1-260 | head -40; } || true )
+            if [ -n "$msg" ]; then
+              msg=$(printf '%s' "$msg" | sed 's/%/%25/g' | sed ':a;N;$!ba;s/\n/%0A/g')
+              echo "::error title=flutter test::$msg"
+            fi
+          fi
 
       - name: Build APK
         run: |

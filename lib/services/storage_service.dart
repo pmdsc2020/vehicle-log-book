@@ -17,10 +17,15 @@ class StorageService {
   late SharedPreferences _prefs;
   late Directory _photosDir;
 
-  Future<void> init() async {
+  /// [photosDir] lets tests keep photos in a temporary folder.
+  Future<void> init({Directory? photosDir}) async {
     _prefs = await SharedPreferences.getInstance();
-    final docs = await getApplicationDocumentsDirectory();
-    _photosDir = Directory('${docs.path}/photos');
+    if (photosDir != null) {
+      _photosDir = photosDir;
+    } else {
+      final docs = await getApplicationDocumentsDirectory();
+      _photosDir = Directory('${docs.path}/photos');
+    }
     if (!await _photosDir.exists()) await _photosDir.create(recursive: true);
   }
 

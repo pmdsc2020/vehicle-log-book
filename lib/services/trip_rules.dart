@@ -237,3 +237,101 @@ void sealTrip(Trip t, List<Trip> all) {
 
 /// True when a locked trip still matches its seal.
 bool sealIntact(Trip t) => t.hash != null && t.hash == hashTrip(t);
+
+// ---------------------------------------------------------------- amounts and summaries
+
+/// Rupees with Indian grouping. Paise show only when there are any.
+String fmtRs(num n) {
+  var whole = n.floor();
+  var paise = ((n - whole) * 100).round();
+  if (paise >= 100) {
+    whole += 1;
+    paise = 0;
+  }
+  final head = '₹${fmtKm(whole)}';
+  return paise == 0 ? head : '$head.${paise.toString().padLeft(2, '0')}';
+}
+
+/// Totals for one month of one person's trips.
+class MonthSummary {
+  final int trips;
+
+  /// All km on closed trips.
+  final int km;
+
+  /// Km inside the monthly limit (limit applies per project if the office rule says so).
+  final int within;
+
+  /// Km above the limit. Paid only after District Integrator approval.
+  final int excess;
+
+  /// Rupees for the km inside the limit.
+  final double amount;
+
+  /// The figure the gauge compares with the limit.
+  final int gaugeKm;
+  final Map<String, int> kmByProject;
+  final Map<String, int> tripsByProject;
+
+  const MonthSummary({
+    required this.trips,
+    required this.km,
+    required this.within,
+    required this.excess,
+    required this.amount,
+    required this.gaugeKm,
+    required this.kmByProject,
+    required this.tripsByProject,
+  });
+}
+
+MonthSummary summarise(List<Trip> monthTrips, AppSettings s) {
+  final kmBy = <String, int>{};
+  final countBy = <String, int>{};
+  var km = 0;
+  var trips = 0;
+  for (final t in monthTrips) {
+    if (t.status != 'closed') continue;
+    final k = t.km ?? 0;
+    km += k;
+    trips += 1;
+    kmBy[t.project] = (kmBy[t.project] ?? 0) + k;
+    countBy[t.project] = (countBy[t.project] ?? 0) + 1;
+  }
+  var within = 0;
+  var excess = 0;
+  var gauge = 0;
+  if (s.scope == 'project') {
+    for (final v in kmBy.values) {
+      within += v > s.limitKm ? s.limitKm : v;
+      excess += v > s.limitKm ? v - s.limitKm : 0;
+      if (v > gauge) gauge = v;
+    }
+  } else {
+    within = km > s.limitKm ? s.limitKm : km;
+    excess = km > s.limitKm ? km - s.limitKm : 0;
+    gauge = km;
+  }
+  return MonthSummary(
+    trips: trips,
+    km: km,
+    within: within,
+    excess: excess,
+    amount: within * s.rate,
+    gaugeKm: gauge,
+    kmByProject: kmBy,
+    tripsByProject: countBy,
+  );
+}
+
+/// Short reasons a reviewer will look at twice.
+List<String> tripFlags(Trip t, AppSettings s) {
+  final out = <String>[];
+  if (t.late != null) out.add('Late entry');
+  if (t.meterReset != null) out.add('Meter reset');
+  final prior = t.prior;
+  if (prior != null && prior['none'] == true) out.add('No prior approval');
+  if (t.start.oldPhoto || (t.end?.oldPhoto ?? false)) out.add('Photo not fresh');
+  if ((t.km ?? 0) > s.highKm) out.add('High km');
+  return out;
+}
