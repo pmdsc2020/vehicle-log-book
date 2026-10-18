@@ -11,6 +11,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.24.5'
@@ -20,8 +25,17 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      # Dart errors show up here first, with file and line, in about a minute.
+      - name: Analyze
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          flutter analyze --no-fatal-infos --no-fatal-warnings 2>&1 | tee analyze.log
+
       - name: Build APK
-        run: flutter build apk --release --android-skip-build-dependency-validation
+        run: |
+          set -o pipefail
+          flutter build apk --release --android-skip-build-dependency-validation 2>&1 | tee build.log
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
@@ -29,3 +43,19 @@ jobs:
           name: vehicle-log-book-apk
           path: build/app/outputs/flutter-apk/app-release.apk
           retention-days: 30
+
+      # If anything above failed, copy the useful lines into the run's annotations
+      # so the cause is visible on the run summary page without opening the logs.
+      - name: Show errors on the run summary
+        if: failure()
+        run: |
+          if [ -f analyze.log ]; then
+            msg=$( { grep -E 'error •' analyze.log | head -40; } || true )
+            [ -n "$msg" ] || msg=$(tail -30 analyze.log)
+            msg=$(printf '%s' "$msg" | sed 's/%/%25/g' | sed ':a;N;$!ba;s/\n/%0A/g')
+            echo "::error title=flutter analyze::$msg"
+          fi
+          if [ -f build.log ]; then
+            msg=$(tail -80 build.log | sed 's/%/%25/g' | sed ':a;N;$!ba;s/\n/%0A/g')
+            echo "::error title=flutter build apk::$msg"
+          fi

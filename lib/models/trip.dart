@@ -90,7 +90,7 @@ class Trip {
   String status; // open | closed | cancelled
   final Map<String, dynamic>? late;
   final Map<String, dynamic>? meterReset;
-  final Map<String, dynamic>? prior;
+  Map<String, dynamic>? prior; // set when the trip is closed, if it went above the limit
   Map<String, dynamic>? cancel;
   List<Note> notes;
   final String loggedAt;

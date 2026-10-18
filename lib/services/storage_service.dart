@@ -54,6 +54,15 @@ class StorageService {
     await saveTrips(all);
   }
 
+  /// Small remembered choices (last project, vehicle, starting place, approver).
+  Map<String, dynamic> getMeta() {
+    final s = _prefs.getString(_metaKey);
+    if (s == null) return {};
+    return Map<String, dynamic>.from(jsonDecode(s) as Map);
+  }
+
+  Future<void> saveMeta(Map<String, dynamic> m) => _prefs.setString(_metaKey, jsonEncode(m));
+
   Map<String, dynamic> getMonths() {
     final s = _prefs.getString(_monthsKey);
     return s == null ? {} : jsonDecode(s) as Map<String, dynamic>;
