@@ -36,6 +36,16 @@ jobs:
           set -o pipefail
           flutter analyze --no-fatal-infos --no-fatal-warnings 2>&1 | tee analyze.log
 
+      - name: Show analyze results on the run summary
+        if: always()
+        run: |
+          if [ -f analyze.log ]; then
+            msg=$( { grep -E '(error|warning|info) •' analyze.log | cut -c1-230 | head -30; } || true )
+            [ -n "$msg" ] || msg=$(tail -3 analyze.log)
+            msg=$(printf '%s' "$msg" | sed 's/%/%25/g' | sed ':a;N;$!ba;s/\n/%0A/g')
+            echo "::notice title=flutter analyze::$msg"
+          fi
+
       # Renders every screen at phone size. Fails on any layout overflow.
       - name: Screens test
         if: always()
