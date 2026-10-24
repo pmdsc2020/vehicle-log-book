@@ -37,6 +37,17 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Projects and types of work offered on the trip form. Trips already saved keep their own names.
+  Future<void> setProjects(List<String> v) async {
+    settings.projects = List<String>.of(v);
+    await updateSettings(settings);
+  }
+
+  Future<void> setActivities(List<String> v) async {
+    settings.activities = List<String>.of(v);
+    await updateSettings(settings);
+  }
+
   Future<void> addOrUpdateTrip(Trip t) async {
     await storage.saveTrip(t);
     trips = storage.getTrips();

@@ -69,7 +69,8 @@ class ActionCard extends StatelessWidget {
   final VoidCallback? onTap;
   final bool accent;
 
-  const ActionCard({super.key, required this.icon, required this.title, required this.body, this.onTap, this.accent = false});
+  const ActionCard(
+      {super.key, required this.icon, required this.title, required this.body, this.onTap, this.accent = false});
 
   @override
   Widget build(BuildContext context) {
@@ -180,6 +181,132 @@ class EmptyState extends StatelessWidget {
           if (action != null) ...[const SizedBox(height: 16), action!],
         ],
       ),
+    );
+  }
+}
+
+// ------------------------------------------------------------------ choice lists
+
+/// Asks for a new name to add to a list. Returns the name as typed, or the existing entry
+/// when the same name (ignoring case) is already there, or null if cancelled.
+Future<String?> askNewChoice(
+  BuildContext context, {
+  required String title,
+  required String label,
+  required List<String> existing,
+}) =>
+    showDialog<String>(
+      context: context,
+      builder: (_) => _NewChoiceDialog(title: title, label: label, existing: existing),
+    );
+
+/// Owns its text controller, so it lives until the dialog has finished closing.
+class _NewChoiceDialog extends StatefulWidget {
+  final String title;
+  final String label;
+  final List<String> existing;
+  const _NewChoiceDialog({required this.title, required this.label, required this.existing});
+
+  @override
+  State<_NewChoiceDialog> createState() => _NewChoiceDialogState();
+}
+
+class _NewChoiceDialogState extends State<_NewChoiceDialog> {
+  final _ctl = TextEditingController();
+  String? _error;
+
+  @override
+  void dispose() {
+    _ctl.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final v = _ctl.text.trim().replaceAll(RegExp(r'\s+'), ' ');
+    if (v.isEmpty) {
+      setState(() => _error = 'Type a name');
+      return;
+    }
+    final same = widget.existing.where((e) => e.toLowerCase() == v.toLowerCase());
+    Navigator.pop(context, same.isEmpty ? v : same.first);
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+        title: Text(widget.title),
+        content: TextField(
+          controller: _ctl,
+          autofocus: true,
+          textCapitalization: TextCapitalization.words,
+          textInputAction: TextInputAction.done,
+          onSubmitted: (_) => _submit(),
+          decoration: InputDecoration(labelText: widget.label, errorText: _error),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          FilledButton.icon(
+            style: FilledButton.styleFrom(minimumSize: const Size(64, 44)),
+            onPressed: _submit,
+            icon: const Icon(AppIcons.add, size: 20),
+            label: const Text('Add'),
+          ),
+        ],
+      );
+}
+
+/// The names in one list (projects, types of work) as chips: tap the cross to remove one,
+/// the last chip adds a new one. The list never goes empty.
+class ChoiceListEditor extends StatelessWidget {
+  final List<String> items;
+  final String addLabel;
+  final String dialogTitle;
+  final String fieldLabel;
+  final ValueChanged<List<String>> onChanged;
+
+  const ChoiceListEditor({
+    super.key,
+    required this.items,
+    required this.addLabel,
+    required this.dialogTitle,
+    required this.fieldLabel,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        for (final it in items)
+          InputChip(
+            label: Text(it),
+            deleteIcon: const Icon(AppIcons.close, size: 16),
+            deleteButtonTooltipMessage: 'Remove $it',
+            onDeleted: items.length <= 1
+                ? null
+                : () {
+                    final next = [...items]..remove(it);
+                    onChanged(next);
+                    ScaffoldMessenger.of(context)
+                      ..hideCurrentSnackBar()
+                      ..showSnackBar(SnackBar(
+                        content: Text('Removed $it'),
+                        action: SnackBarAction(label: 'Undo', onPressed: () => onChanged(items)),
+                      ));
+                  },
+          ),
+        ActionChip(
+          avatar: Icon(AppIcons.add, size: 18, color: cs.primary),
+          label: Text(addLabel, style: TextStyle(color: cs.primary, fontWeight: FontWeight.w600)),
+          side: BorderSide(color: cs.primary.withAlpha(120)),
+          onPressed: () async {
+            final v = await askNewChoice(context, title: dialogTitle, label: fieldLabel, existing: items);
+            if (v != null && !items.contains(v)) onChanged([...items, v]);
+          },
+        ),
+      ],
     );
   }
 }
@@ -452,7 +579,7 @@ class StatusPill extends StatelessWidget {
       case PillKind.open:
         bg = cs.tertiaryContainer;
         fg = cs.onTertiaryContainer;
-        
+
         break;
       case PillKind.cancelled:
         bg = cs.surfaceContainerHigh;
@@ -515,7 +642,9 @@ class RouteLine extends StatelessWidget {
         children: [
           SizedBox(
             width: 16,
-            child: CustomPaint(painter: _RoutePainter(color: cs.primary, line: cs.outline, topY: large ? 12 : 11, bottomInset: large ? 16 : 13)),
+            child: CustomPaint(
+                painter: _RoutePainter(
+                    color: cs.primary, line: cs.outline, topY: large ? 12 : 11, bottomInset: large ? 16 : 13)),
           ),
           const SizedBox(width: 10),
           Expanded(
@@ -731,7 +860,8 @@ class _Node extends StatelessWidget {
         duration: Motion.slow,
         curve: Curves.elasticOut,
         builder: (context, v, child) => Transform.scale(scale: v, child: child),
-        child: CircleAvatar(radius: 14, backgroundColor: cs.primary, child: Icon(AppIcons.check, size: 16, color: cs.onPrimary)),
+        child: CircleAvatar(
+            radius: 14, backgroundColor: cs.primary, child: Icon(AppIcons.check, size: 16, color: cs.onPrimary)),
       );
     }
     return Container(
@@ -742,7 +872,11 @@ class _Node extends StatelessWidget {
         color: state == 1 ? cs.primaryContainer : cs.surface,
         border: Border.all(color: state == 1 ? cs.primary : cs.outlineVariant, width: 2),
       ),
-      child: state == 1 ? Center(child: Container(width: 8, height: 8, decoration: BoxDecoration(color: cs.primary, shape: BoxShape.circle))) : null,
+      child: state == 1
+          ? Center(
+              child:
+                  Container(width: 8, height: 8, decoration: BoxDecoration(color: cs.primary, shape: BoxShape.circle)))
+          : null,
     );
   }
 }
@@ -755,7 +889,8 @@ class MonthChips extends StatelessWidget {
   final String Function(String) label;
   final ValueChanged<String> onSelected;
 
-  const MonthChips({super.key, required this.months, required this.selected, required this.label, required this.onSelected});
+  const MonthChips(
+      {super.key, required this.months, required this.selected, required this.label, required this.onSelected});
 
   @override
   Widget build(BuildContext context) {

@@ -571,19 +571,67 @@ class _TripFormScreenState extends State<TripFormScreen> {
     );
   }
 
-  Widget _dropdown(String key, String label, List<String> items, String? value, ValueChanged<String?> onChanged) {
+  /// Value of the last menu entry, "Add a new …". Never saved.
+  static const _addNew = '\u0000add';
+
+  /// Bumped on every "Add a new …" so the field forgets the entry even when the user cancels.
+  int _addRound = 0;
+
+  Widget _dropdown(String key, String label, List<String> items, String? value, ValueChanged<String?> onChanged,
+      {String? addLabel, Future<String?> Function()? onAdd}) {
     final shown = (value != null && items.contains(value)) ? value : null;
+    final cs = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.only(bottom: 14),
       child: DropdownButtonFormField<String>(
+        key: ValueKey<String>('$key|$shown|${items.length}|$_addRound'),
         icon: const Icon(AppIcons.dropdown),
         value: shown,
         isExpanded: true,
         decoration: InputDecoration(labelText: label, errorText: _errs[key], errorMaxLines: 3),
-        items: items.map((s) => DropdownMenuItem<String>(value: s, child: Text(s, overflow: TextOverflow.ellipsis))).toList(),
-        onChanged: onChanged,
+        items: [
+          for (final s in items) DropdownMenuItem<String>(value: s, child: Text(s, overflow: TextOverflow.ellipsis)),
+          if (onAdd != null)
+            DropdownMenuItem<String>(
+              value: _addNew,
+              child: Row(
+                children: [
+                  Icon(AppIcons.add, size: 20, color: cs.primary),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      addLabel ?? 'Add new',
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(color: cs.primary, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+        onChanged: (v) async {
+          if (v != _addNew) return onChanged(v);
+          final added = await onAdd!();
+          if (!mounted) return;
+          setState(() => _addRound++);
+          if (added != null) onChanged(added);
+        },
       ),
     );
+  }
+
+  Future<String?> _addProject() async {
+    final list = _state.settings.projects;
+    final v = await askNewChoice(context, title: 'New project', label: 'Project name', existing: list);
+    if (v != null && !list.contains(v)) await _state.setProjects([...list, v]);
+    return v;
+  }
+
+  Future<String?> _addActivity() async {
+    final list = _state.settings.activities;
+    final v = await askNewChoice(context, title: 'New type of work', label: 'Type of work', existing: list);
+    if (v != null && !list.contains(v)) await _state.setActivities([...list, v]);
+    return v;
   }
 
   /// A date or time that opens a picker. Looks like a field, reads like a label and a value.
@@ -966,10 +1014,18 @@ class _TripFormScreenState extends State<TripFormScreen> {
             ]),
           if (!isEnd)
             _section('Trip', [
-              _dropdown('project', 'Project', st.projects, _project, (v) => setState(() {
-                    _project = v;
-                    _errs.remove('project');
-                  })),
+              _dropdown(
+                'project',
+                'Project',
+                st.projects,
+                _project,
+                (v) => setState(() {
+                  _project = v;
+                  _errs.remove('project');
+                }),
+                addLabel: 'Add a new project',
+                onAdd: _addProject,
+              ),
               if (_hasVehicles)
                 _dropdown(
                   'vehicle',
@@ -989,9 +1045,17 @@ class _TripFormScreenState extends State<TripFormScreen> {
               ],
               _field('from', 'From', _from, hint: 'Starting place'),
               _field('to', 'To (village)', _to, hint: 'Separate villages with commas'),
-              _dropdown('activity', 'Type of work', st.activities, _activity, (v) {
-                if (v != null) setState(() => _activity = v);
-              }),
+              _dropdown(
+                'activity',
+                'Type of work',
+                st.activities,
+                _activity,
+                (v) {
+                  if (v != null) setState(() => _activity = v);
+                },
+                addLabel: 'Add a new type of work',
+                onAdd: _addActivity,
+              ),
               _field('task', 'Task performed', _task,
                   lines: 2, hint: 'e.g. PIC meeting on net plan; checked farm pond work'),
             ]),

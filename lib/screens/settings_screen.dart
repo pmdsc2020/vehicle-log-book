@@ -163,6 +163,28 @@ class SettingsScreen extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 8),
+        const SectionTitle('Projects'),
+        Surface(
+          child: ChoiceListEditor(
+            items: s.projects,
+            addLabel: 'Add project',
+            dialogTitle: 'New project',
+            fieldLabel: 'Project name',
+            onChanged: state.setProjects,
+          ),
+        ),
+        const SizedBox(height: 8),
+        const SectionTitle('Types of work'),
+        Surface(
+          child: ChoiceListEditor(
+            items: s.activities,
+            addLabel: 'Add type of work',
+            dialogTitle: 'New type of work',
+            fieldLabel: 'Type of work',
+            onChanged: state.setActivities,
+          ),
+        ),
+        const SizedBox(height: 8),
         const SectionTitle('Appearance'),
         SegmentedButton<String>(
           showSelectedIcon: false,

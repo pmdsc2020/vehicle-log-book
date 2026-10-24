@@ -55,7 +55,17 @@ class _PressableState extends State<Pressable> {
   bool _pressed = false;
   bool _focus = false;
 
+  /// The card's own focus. Focus also passes through here when a field or dropdown
+  /// inside the card takes it; only the card itself being focused draws the ring.
+  final FocusNode _node = FocusNode(debugLabel: 'Pressable');
+
   bool get _enabled => widget.onTap != null || widget.onLongPress != null;
+
+  @override
+  void dispose() {
+    _node.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -78,7 +88,10 @@ class _PressableState extends State<Pressable> {
         onLongPress: widget.onLongPress,
         onHover: (v) => setState(() => _hover = v),
         onHighlightChanged: (v) => setState(() => _pressed = v),
-        onFocusChange: (v) => setState(() => _focus = v),
+        focusNode: _node,
+        onFocusChange: (_) {
+          if (_focus != _node.hasPrimaryFocus) setState(() => _focus = _node.hasPrimaryFocus);
+        },
         splashColor: glow.withAlpha(30),
         highlightColor: glow.withAlpha(14),
         hoverColor: glow.withAlpha(10),
@@ -97,9 +110,12 @@ class _PressableState extends State<Pressable> {
             BoxShadow(color: glow.withAlpha(46), blurRadius: 24, spreadRadius: -4, offset: const Offset(0, 10)),
         ],
       ),
-      foregroundDecoration: _focus
-          ? BoxDecoration(borderRadius: widget.borderRadius, border: Border.all(color: cs.primary, width: 2.5))
-          : null,
+      // Always a decoration, only its colour changes: swapping it for null would rebuild
+      // everything inside the card and close any open dropdown or keyboard.
+      foregroundDecoration: BoxDecoration(
+        borderRadius: widget.borderRadius,
+        border: Border.all(color: _focus ? cs.primary : Colors.transparent, width: 2.5),
+      ),
       child: child,
     );
 
@@ -508,8 +524,10 @@ class _GlowButtonState extends State<GlowButton> with SingleTickerProviderStateM
                 ),
               ],
             ),
-            foregroundDecoration:
-                _focus ? BoxDecoration(borderRadius: br, border: Border.all(color: cs.onSurface, width: 2.5)) : null,
+            foregroundDecoration: BoxDecoration(
+              borderRadius: br,
+              border: Border.all(color: _focus ? cs.onSurface : Colors.transparent, width: 2.5),
+            ),
             child: ClipRRect(
               borderRadius: br,
               child: Stack(
