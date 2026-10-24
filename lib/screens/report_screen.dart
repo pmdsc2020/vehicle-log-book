@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
 
+import '../models/profile.dart';
 import '../services/app_state.dart';
 import '../services/trip_rules.dart';
 import '../ui/format.dart';
+import '../ui/motion.dart';
 import '../ui/theme.dart';
 import '../ui/trip_tiles.dart';
 import '../ui/widgets.dart';
@@ -41,7 +44,7 @@ class _ReportScreenState extends State<ReportScreen> {
     final maxKm = projects.isEmpty ? 1 : (sum.kmByProject[projects.first] ?? 1);
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 28),
+      padding: pagePadding(context),
       children: [
         Text('Monthly report', style: tt.headlineSmall),
         const SizedBox(height: 14),
@@ -142,15 +145,49 @@ class _ReportScreenState extends State<ReportScreen> {
           ),
         ),
         const SizedBox(height: 14),
-        const FilledButton(onPressed: null, child: Text('Send to Block Integrator')),
+        GlowButton(
+          icon: AppIcons.share,
+          label: 'Share the statement',
+          onPressed: () => Share.share(
+            _statement(state.profile!.name, month, sum, settings, flagged.length),
+            subject: 'Vehicle log, ${fmtMonthLong(month)}',
+          ),
+        ),
         const SizedBox(height: 8),
         Text(
-          'Sending the report is not in this version of the app yet. Your trips are saved and will be included when it is.',
+          'Sends this month\'s figures as a message, for WhatsApp or email. '
+          'Sending the report for sign-off in the app is not in this version yet.',
           style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
           textAlign: TextAlign.center,
         ),
       ],
     );
+  }
+
+  String _statement(String name, String month, MonthSummary sum, AppSettings settings, int flagged) {
+    final b = StringBuffer()
+      ..writeln('Vehicle log, ${fmtMonthLong(month)}')
+      ..writeln(name)
+      ..writeln()
+      ..writeln('Trips: ${sum.trips}')
+      ..writeln('Km travelled: ${fmtKm(sum.km)}')
+      ..writeln('Within the ${fmtKm(settings.limitKm)} km limit: ${fmtKm(sum.within)} km')
+      ..writeln('Above the limit: ${fmtKm(sum.excess)} km')
+      ..writeln('Payable: ${fmtRs(sum.amount)} (at ₹${_rate(settings.rate)} a km)');
+    if (sum.kmByProject.isNotEmpty) {
+      b
+        ..writeln()
+        ..writeln('By project:');
+      for (final e in sum.kmByProject.entries) {
+        b.writeln('  ${e.key}: ${fmtKm(e.value)} km');
+      }
+    }
+    if (flagged > 0) {
+      b
+        ..writeln()
+        ..writeln('$flagged ${flagged == 1 ? 'trip is' : 'trips are'} marked for a second look.');
+    }
+    return b.toString().trimRight();
   }
 
   String _rate(double r) => r == r.roundToDouble() ? r.round().toString() : r.toStringAsFixed(2);
@@ -182,13 +219,24 @@ class _ProjectBar extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 6),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(4),
-            child: LinearProgressIndicator(
-              value: fraction.clamp(0.0, 1.0).toDouble(),
-              minHeight: 8,
-              backgroundColor: cs.surfaceContainerHigh,
-              color: cs.primary,
+          TweenAnimationBuilder<double>(
+            tween: Tween<double>(begin: 0, end: fraction.clamp(0.0, 1.0).toDouble()),
+            duration: const Duration(milliseconds: 900),
+            curve: Motion.emphasized,
+            builder: (context, v, _) => Container(
+              height: 10,
+              decoration: BoxDecoration(color: cs.surfaceContainerHigh, borderRadius: BorderRadius.circular(5)),
+              alignment: Alignment.centerLeft,
+              child: FractionallySizedBox(
+                widthFactor: v,
+                heightFactor: 1,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(5),
+                    gradient: LinearGradient(colors: [cs.primary.withAlpha(170), cs.primary]),
+                  ),
+                ),
+              ),
             ),
           ),
           const SizedBox(height: 4),

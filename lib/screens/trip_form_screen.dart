@@ -9,6 +9,7 @@ import '../models/profile.dart';
 import '../models/trip.dart';
 import '../services/app_state.dart';
 import '../services/trip_rules.dart';
+import '../ui/motion.dart';
 import '../ui/theme.dart';
 import '../ui/widgets.dart';
 
@@ -575,6 +576,7 @@ class _TripFormScreenState extends State<TripFormScreen> {
     return Padding(
       padding: const EdgeInsets.only(bottom: 14),
       child: DropdownButtonFormField<String>(
+        icon: const Icon(AppIcons.dropdown),
         value: shown,
         isExpanded: true,
         decoration: InputDecoration(labelText: label, errorText: _errs[key], errorMaxLines: 3),
@@ -662,7 +664,7 @@ class _TripFormScreenState extends State<TripFormScreen> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.photo_camera_outlined, size: 32, color: cs.primary),
+                      Icon(AppIcons.camera, size: 32, color: cs.primary),
                       const SizedBox(height: 6),
                       Text('Take a photo of the meter', style: tt.labelLarge?.copyWith(color: cs.primary)),
                     ],
@@ -683,7 +685,7 @@ class _TripFormScreenState extends State<TripFormScreen> {
                   child: StatusPill(
                     old ? 'Not a fresh photo' : 'Photo ready',
                     kind: old ? PillKind.flag : PillKind.locked,
-                    icon: old ? Icons.warning_amber_rounded : Icons.check_circle,
+                    icon: old ? AppIcons.warn : AppIcons.ok,
                   ),
                 ),
               ],
@@ -702,13 +704,13 @@ class _TripFormScreenState extends State<TripFormScreen> {
               children: [
                 TextButton.icon(
                   onPressed: _busy ? null : () => _pickPhoto(opening, ImageSource.camera),
-                  icon: const Icon(Icons.photo_camera_outlined),
+                  icon: const Icon(AppIcons.camera),
                   label: const Text('Retake'),
                 ),
                 if (allowGallery)
                   TextButton.icon(
                     onPressed: _busy ? null : () => _pickPhoto(opening, ImageSource.gallery),
-                    icon: const Icon(Icons.photo_library_outlined),
+                    icon: const Icon(AppIcons.gallery),
                     label: const Text('Gallery'),
                   ),
               ],
@@ -717,7 +719,7 @@ class _TripFormScreenState extends State<TripFormScreen> {
           if (shot == null && allowGallery)
             TextButton.icon(
               onPressed: _busy ? null : () => _pickPhoto(opening, ImageSource.gallery),
-              icon: const Icon(Icons.photo_library_outlined),
+              icon: const Icon(AppIcons.gallery),
               label: const Text('Choose from gallery'),
             ),
           if (err != null)
@@ -730,7 +732,7 @@ class _TripFormScreenState extends State<TripFormScreen> {
     );
   }
 
-  Widget _notice(String text, {bool warn = false, IconData icon = Icons.info_outline}) {
+  Widget _notice(String text, {bool warn = false, IconData icon = AppIcons.info}) {
     final cs = Theme.of(context).colorScheme;
     final tt = Theme.of(context).textTheme;
     final bg = warn ? cs.tertiaryContainer : cs.surfaceContainer;
@@ -825,7 +827,7 @@ class _TripFormScreenState extends State<TripFormScreen> {
           children: [
             Row(
               children: [
-                Icon(Icons.policy_outlined, color: cs.tertiary),
+                Icon(AppIcons.policy, color: cs.tertiary),
                 const SizedBox(width: 10),
                 Expanded(child: Text('Above the monthly limit', style: tt.titleMedium)),
               ],
@@ -837,7 +839,7 @@ class _TripFormScreenState extends State<TripFormScreen> {
             _dropdown('pmode', 'How', priorModes, _priorMode, (v) {
               if (v != null) setState(() => _priorMode = v);
             }),
-            _pickTile('Approval date', fmtDate(_priorDate), Icons.event_outlined, _priorNone ? null : _pickPriorDate),
+            _pickTile('Approval date', fmtDate(_priorDate), AppIcons.calendar, _priorNone ? null : _pickPriorDate),
             _field('pref', 'Reference or remark', _priorRef, hint: 'e.g. WhatsApp message 15-10, 10:05', enabled: !_priorNone),
             CheckboxListTile(
               contentPadding: EdgeInsets.zero,
@@ -946,14 +948,14 @@ class _TripFormScreenState extends State<TripFormScreen> {
           if (isEnd) _endSummary(),
           if (isFull)
             _section('When', [
-              _pickTile('Trip date', fmtDate(_date), Icons.event_outlined, _pickDate, error: _errs['date']),
+              _pickTile('Trip date', fmtDate(_date), AppIcons.calendar, _pickDate, error: _errs['date']),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(child: _pickTile('Left at', _tStart.format(context), Icons.schedule, () => _pickTime(true))),
+                  Expanded(child: _pickTile('Left at', _tStart.format(context), AppIcons.clock, () => _pickTime(true))),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: _pickTile('Back at', _tEnd.format(context), Icons.schedule, () => _pickTime(false),
+                    child: _pickTile('Back at', _tEnd.format(context), AppIcons.clock, () => _pickTime(false),
                         error: _errs['tend']),
                   ),
                 ],
@@ -1041,23 +1043,23 @@ class _TripFormScreenState extends State<TripFormScreen> {
           _notice(
             'After locking, readings, photos and details cannot be changed. You can only add a note.',
             warn: true,
-            icon: Icons.lock_outline,
+            icon: AppIcons.lock,
           ),
         ],
       ),
-      bottomNavigationBar: DecoratedBox(
-        decoration: BoxDecoration(
-          color: cs.surface,
-          border: Border(top: BorderSide(color: cs.outlineVariant)),
-        ),
-        child: SafeArea(
-          top: false,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
-            child: FilledButton.icon(
-              onPressed: (_saving || _busy) ? null : _submit,
-              icon: const Icon(Icons.lock_outline),
-              label: Text(_saving ? 'Saving' : (isStart ? 'Lock and start' : 'Lock and save')),
+      bottomNavigationBar: SafeArea(
+        top: false,
+        minimum: const EdgeInsets.only(bottom: 10),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(12, 0, 12, 0),
+          child: GlassBar(
+            borderRadius: BorderRadius.circular(26),
+            padding: const EdgeInsets.all(8),
+            child: GlowButton(
+              onPressed: _busy ? null : _submit,
+              busy: _saving,
+              icon: AppIcons.lock,
+              label: _saving ? 'Saving' : (isStart ? 'Lock and start' : 'Lock and save'),
             ),
           ),
         ),

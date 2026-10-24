@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 /// Colour tokens. The one dark object in the app is the odometer drum.
 class AppColors {
@@ -17,6 +18,101 @@ class AppColors {
   static const onDrumFaint = Color(0x5CF2F6F4); // 36%
   static const drumStroke = Color(0x1AFFFFFF); // 10%
   static const drumTrack = Color(0x24FFFFFF); // 14%
+}
+
+/// Frosted-glass colours for the current brightness. Fills stay opaque enough
+/// that text on them keeps the same contrast as on a solid surface.
+class GlassColors {
+  final Color fill;
+  final Color fillHigh;
+  final Color stroke;
+  final Color bar;
+  final Color shadow;
+  final List<Color> aurora;
+
+  const GlassColors._(this.fill, this.fillHigh, this.stroke, this.bar, this.shadow, this.aurora);
+
+  static const light = GlassColors._(
+    Color(0xD9FFFFFF), // 85% white
+    Color(0xF2FFFFFF),
+    Color(0xB3FFFFFF),
+    Color(0xC7FFFFFF),
+    Color(0x1F0D3B30),
+    [Color(0x3863D3B0), Color(0x2EF2A93B), Color(0x2E0D6B55)],
+  );
+
+  static const dark = GlassColors._(
+    Color(0xC2131D1A), // 76% surface
+    Color(0xD91A2824),
+    Color(0x1FFFFFFF),
+    Color(0xB8101916),
+    Color(0x66000000),
+    [Color(0x330D6B55), Color(0x1FF2A93B), Color(0x2963D3B0)],
+  );
+
+  static GlassColors of(BuildContext context) => Theme.of(context).brightness == Brightness.dark ? dark : light;
+}
+
+class AppGradients {
+  /// White text on these passes 4.5:1 at every stop.
+  static List<Color> brand(Brightness b) => b == Brightness.dark
+      ? const [Color(0xFF138A6E), Color(0xFF0B5A48)]
+      : const [Color(0xFF0F7A61), Color(0xFF0A5443)];
+
+  /// Ink text on amber.
+  static const amber = [Color(0xFFF7C066), Color(0xFFF2A93B)];
+
+  /// The drum surface, with a little green coming through from the top corner.
+  static const drum = [Color(0xFF16302A), Color(0xFF0F1B17), Color(0xFF0B1411)];
+}
+
+/// Every icon in the app, from Lucide, in one place so the set stays consistent.
+class AppIcons {
+  static const today = LucideIcons.gauge;
+  static const log = LucideIcons.bookOpen;
+  static const report = LucideIcons.receiptText;
+  static const review = LucideIcons.clipboardCheck;
+  static const settings = LucideIcons.slidersHorizontal;
+
+  static const start = LucideIcons.play;
+  static const end = LucideIcons.flag;
+  static const logFinished = LucideIcons.calendarPlus;
+  static const route = LucideIcons.route;
+  static const lock = LucideIcons.lock;
+  static const lockOpen = LucideIcons.lockOpen;
+  static const open = LucideIcons.circleDot;
+  static const cancelled = LucideIcons.ban;
+  static const flag = LucideIcons.flag;
+  static const info = LucideIcons.info;
+  static const warn = LucideIcons.triangleAlert;
+  static const ok = LucideIcons.circleCheck;
+  static const circle = LucideIcons.circle;
+  static const check = LucideIcons.check;
+  static const close = LucideIcons.x;
+  static const add = LucideIcons.plus;
+  static const clock = LucideIcons.clock;
+  static const calendar = LucideIcons.calendar;
+  static const camera = LucideIcons.camera;
+  static const gallery = LucideIcons.images;
+  static const noPhoto = LucideIcons.imageOff;
+  static const sealOk = LucideIcons.shieldCheck;
+  static const sealBad = LucideIcons.shieldAlert;
+  static const approved = LucideIcons.badgeCheck;
+  static const policy = LucideIcons.stamp;
+  static const meter = LucideIcons.gauge;
+  static const erase = LucideIcons.trash2;
+  static const role = LucideIcons.idCard;
+  static const twoWheeler = LucideIcons.bike;
+  static const fourWheeler = LucideIcons.car;
+  static const share = LucideIcons.share2;
+  static const chevron = LucideIcons.chevronRight;
+  static const dropdown = LucideIcons.chevronDown;
+  static const arrow = LucideIcons.arrowRight;
+  static const sun = LucideIcons.sun;
+  static const moon = LucideIcons.moon;
+  static const phoneTheme = LucideIcons.smartphone;
+  static const rupee = LucideIcons.indianRupee;
+  static const note = LucideIcons.stickyNote;
 }
 
 extension AmberText on ColorScheme {
@@ -97,10 +193,12 @@ class AppTheme {
   }
 
   static TextTheme _textTheme(TextTheme t) => t.copyWith(
-        displaySmall: t.displaySmall?.copyWith(fontSize: 40, fontWeight: FontWeight.w700),
-        headlineMedium: t.headlineMedium?.copyWith(fontSize: 32, fontWeight: FontWeight.w700, height: 1.1),
-        headlineSmall: t.headlineSmall?.copyWith(fontSize: 26, fontWeight: FontWeight.w700, height: 1.15),
-        titleLarge: t.titleLarge?.copyWith(fontSize: 22, fontWeight: FontWeight.w600),
+        displaySmall: t.displaySmall?.copyWith(fontSize: 40, fontWeight: FontWeight.w700, letterSpacing: -0.8),
+        headlineMedium:
+            t.headlineMedium?.copyWith(fontSize: 34, fontWeight: FontWeight.w700, height: 1.05, letterSpacing: -0.6),
+        headlineSmall:
+            t.headlineSmall?.copyWith(fontSize: 28, fontWeight: FontWeight.w700, height: 1.1, letterSpacing: -0.4),
+        titleLarge: t.titleLarge?.copyWith(fontSize: 22, fontWeight: FontWeight.w700, letterSpacing: -0.2),
         titleMedium: t.titleMedium?.copyWith(fontSize: 18, fontWeight: FontWeight.w600, letterSpacing: 0),
         titleSmall: t.titleSmall?.copyWith(fontSize: 16, fontWeight: FontWeight.w600, letterSpacing: 0),
         bodyLarge: t.bodyLarge?.copyWith(fontSize: 18, height: 1.3),
@@ -179,8 +277,8 @@ class AppTheme {
         ),
       ),
       navigationBarTheme: NavigationBarThemeData(
-        height: 70,
-        backgroundColor: cs.surface,
+        height: 68,
+        backgroundColor: Colors.transparent,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         indicatorColor: cs.primaryContainer,
@@ -218,6 +316,27 @@ class AppTheme {
         surfaceTintColor: Colors.transparent,
         showDragHandle: true,
         shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      ),
+      actionIconTheme: ActionIconThemeData(
+        backButtonIconBuilder: (_) => const Icon(LucideIcons.arrowLeft),
+        closeButtonIconBuilder: (_) => const Icon(LucideIcons.x),
+      ),
+      pageTransitionsTheme: const PageTransitionsTheme(builders: {
+        TargetPlatform.android: ZoomPageTransitionsBuilder(allowEnterRouteSnapshotting: false),
+        TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+        TargetPlatform.linux: ZoomPageTransitionsBuilder(allowEnterRouteSnapshotting: false),
+        TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
+        TargetPlatform.windows: ZoomPageTransitionsBuilder(allowEnterRouteSnapshotting: false),
+      }),
+      dialogTheme: DialogTheme(
+        backgroundColor: cs.surface,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        titleTextStyle: text.titleLarge,
+      ),
+      tooltipTheme: TooltipThemeData(
+        decoration: BoxDecoration(color: cs.inverseSurface, borderRadius: BorderRadius.circular(8)),
+        textStyle: text.bodySmall?.copyWith(color: cs.onInverseSurface),
       ),
       checkboxTheme: CheckboxThemeData(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),

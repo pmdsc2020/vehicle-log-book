@@ -3,6 +3,7 @@
 //
 // Run:  SHOTS=1 flutter test test/shots_test.dart
 // Without SHOTS=1 the tests are skipped, so a plain `flutter test` stays quick.
+import 'dart:convert';
 import 'dart:io';
 import 'dart:ui' as ui;
 
@@ -47,6 +48,14 @@ Future<void> _loadFonts() async {
     await l.load();
   }
 
+  // Lucide icons, from the package in the pub cache.
+  final lucide = _packageFile('lucide_icons_flutter', 'assets/lucide.ttf');
+  if (lucide != null) {
+    final l = FontLoader('packages/lucide_icons_flutter/Lucide');
+    l.addFont(Future<ByteData>.value(ByteData.sublistView(lucide.readAsBytesSync())));
+    await l.load();
+  }
+
   // Barlow has no rupee sign. On a phone the system font supplies it; here a stand-in does.
   final sans = Platform.environment['FALLBACK_FONT'];
   if (sans != null && sans.isNotEmpty && File(sans).existsSync()) {
@@ -54,6 +63,22 @@ Future<void> _loadFonts() async {
     l.addFont(Future<ByteData>.value(ByteData.sublistView(File(sans).readAsBytesSync())));
     await l.load();
   }
+}
+
+/// A file inside a dependency, found through the package config `pub get` writes.
+File? _packageFile(String package, String path) {
+  final config = File('.dart_tool/package_config.json');
+  if (!config.existsSync()) return null;
+  final packages = (jsonDecode(config.readAsStringSync()) as Map<String, dynamic>)['packages'] as List<dynamic>;
+  for (final p in packages.cast<Map<String, dynamic>>()) {
+    if (p['name'] != package) continue;
+    var root = Uri.parse(p['rootUri'] as String);
+    if (!root.path.endsWith('/')) root = root.replace(path: '${root.path}/');
+    final dir = root.isAbsolute ? root : config.parent.uri.resolveUri(root);
+    final f = File.fromUri(dir.resolve(path));
+    return f.existsSync() ? f : null;
+  }
+  return null;
 }
 
 // ---------------------------------------------------------------- data
@@ -105,20 +130,24 @@ Future<AppState> _seed({required bool profile, required String scenario}) async 
     const _Spec(8, 'NABARD', 'Akkalkuwa, Moliwada', 'Training / workshop', 'Farmer training on soil health card', 66),
     const _Spec(6, 'VCS 4285 Carbon', 'Dhadgaon', 'Survey / planning', 'Baseline survey of cookstove households', 59,
         late: true),
-    const _Spec(5, 'Project SAHAS', 'Shahada', 'Work supervision', 'Checked check dam work and recorded measurements', 25,
+    const _Spec(
+        5, 'Project SAHAS', 'Shahada', 'Work supervision', 'Checked check dam work and recorded measurements', 25,
         reset: true),
     const _Spec(3, 'ABF (Axis Bank Foundation)', 'Taloda, Bhagdari, Kalambu', 'Monitoring visit',
         'Monitoring of SHG savings and loan registers in three villages', 143),
-    const _Spec(1, 'Lokkalyan CSR', 'Navapur', 'Govt. office / bank', 'Submitted utilisation certificate at the block office', 54),
+    const _Spec(1, 'Lokkalyan CSR', 'Navapur', 'Govt. office / bank',
+        'Submitted utilisation certificate at the block office', 54),
     if (scenario == 'over') ...[
-      _Spec(1, 'NABARD', 'Dhule, Sakri', 'Monitoring visit', 'Review of watershed works with the cluster team', 118, prior: {
-        'by': 'Mr. Patil (District Integrator)',
-        'date': _day(2),
-        'mode': 'WhatsApp',
-        'ref': 'Message of 15-10, 10:05',
-        'none': false,
-      }),
-      _Spec(0, 'ABF (Axis Bank Foundation)', 'Pimpalner', 'Monitoring visit', 'Follow-up visit to SHG federation office', 74,
+      _Spec(1, 'NABARD', 'Dhule, Sakri', 'Monitoring visit', 'Review of watershed works with the cluster team', 118,
+          prior: {
+            'by': 'Mr. Patil (District Integrator)',
+            'date': _day(2),
+            'mode': 'WhatsApp',
+            'ref': 'Message of 15-10, 10:05',
+            'none': false,
+          }),
+      _Spec(0, 'ABF (Axis Bank Foundation)', 'Pimpalner', 'Monitoring visit',
+          'Follow-up visit to SHG federation office', 74,
           prior: {'by': '', 'date': '', 'mode': '', 'ref': '', 'none': true}),
     ],
   ];
@@ -239,6 +268,8 @@ Future<void> _pumpApp(
   tester.view.padding = const FakeViewPadding(top: 28, bottom: 16);
   tester.view.viewPadding = const FakeViewPadding(top: 28, bottom: 16);
   tester.platformDispatcher.textScaleFactorTestValue = textScale;
+  // Reduced motion: looping animations (aurora, live dot) hold still so the frame can settle.
+  tester.platformDispatcher.accessibilityFeaturesTestValue = const FakeAccessibilityFeatures(disableAnimations: true);
   addTearDown(tester.view.reset);
   addTearDown(tester.platformDispatcher.clearAllTestValues);
 
@@ -247,7 +278,7 @@ Future<void> _pumpApp(
       key: _shotKey,
       child: ChangeNotifierProvider<AppState>.value(
         value: state,
-        child: VehicleLogApp(themeMode: mode),
+        child: VehicleLogApp(themeMode: mode, splash: false),
       ),
     ),
   );
@@ -315,6 +346,29 @@ void main() {
   setUpAll(() async {
     if (_enabled) await _loadFonts();
   });
+
+  testWidgets('opening animation', (tester) async {
+    final s = await _state(tester, scenario: 'open');
+    tester.view.devicePixelRatio = 1.0;
+    tester.view.physicalSize = _phone;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      RepaintBoundary(
+        key: _shotKey,
+        child: ChangeNotifierProvider<AppState>.value(value: s, child: const VehicleLogApp(themeMode: ThemeMode.light)),
+      ),
+    );
+    var elapsed = 0;
+    for (final ms in [0, 500, 900, 1500, 2400]) {
+      await tester.pump(Duration(milliseconds: ms - elapsed));
+      elapsed = ms;
+      await _shot(tester, '00_splash_$ms');
+    }
+    // It hands over to the app by itself.
+    await tester.pump(const Duration(seconds: 2));
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.byType(NavigationBar), findsOneWidget);
+  }, skip: !_enabled);
 
   testWidgets('setup', (tester) async {
     final s = await _state(tester, profile: false);

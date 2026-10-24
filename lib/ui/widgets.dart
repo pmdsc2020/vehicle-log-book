@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import 'motion.dart';
 import 'theme.dart';
 
 // ------------------------------------------------------------------ brand
@@ -22,34 +23,95 @@ class LogoMark extends StatelessWidget {
 
 // ------------------------------------------------------------------ surfaces
 
-/// A plain bordered panel. No shadow: hierarchy comes from the border and spacing.
+/// Padding for a tab's scrolling page: room at the bottom for the floating nav bar.
+EdgeInsets pagePadding(BuildContext context) =>
+    EdgeInsets.fromLTRB(16, 4, 16, 28 + MediaQuery.paddingOf(context).bottom);
+
+/// A frosted-glass panel. Pass [onTap] to make the whole panel a button.
 class Surface extends StatelessWidget {
   final Widget child;
   final EdgeInsetsGeometry padding;
   final Color? color;
   final double radius;
   final bool outlined;
+  final VoidCallback? onTap;
+  final String? semanticLabel;
 
   const Surface({
     super.key,
     required this.child,
     this.padding = const EdgeInsets.all(16),
     this.color,
-    this.radius = 16,
+    this.radius = 20,
     this.outlined = true,
+    this.onTap,
+    this.semanticLabel,
   });
+
+  @override
+  Widget build(BuildContext context) => GlassCard(
+        padding: padding,
+        tint: color,
+        radius: radius,
+        borderColor: outlined ? null : Colors.transparent,
+        onTap: onTap,
+        semanticLabel: semanticLabel,
+        child: child,
+      );
+}
+
+/// A small card that does one thing: an icon tile, a title and a line under it.
+/// [accent] shows the line as a figure.
+class ActionCard extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String body;
+  final VoidCallback? onTap;
+  final bool accent;
+
+  const ActionCard({super.key, required this.icon, required this.title, required this.body, this.onTap, this.accent = false});
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    return Container(
-      padding: padding,
-      decoration: BoxDecoration(
-        color: color ?? cs.surface,
-        borderRadius: BorderRadius.circular(radius),
-        border: outlined ? Border.all(color: cs.outlineVariant) : null,
+    final tt = Theme.of(context).textTheme;
+    return GlassCard(
+      onTap: onTap,
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(13),
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: accent ? AppGradients.amber : AppGradients.brand(cs.brightness),
+                  ),
+                ),
+                child: Icon(icon, size: 21, color: accent ? AppColors.ink : Colors.white),
+              ),
+              const Spacer(),
+              Icon(AppIcons.arrow, size: 18, color: cs.onSurfaceVariant),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(title, style: tt.titleSmall),
+          const SizedBox(height: 2),
+          accent
+              ? FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(body, style: numStyle(20, weight: FontWeight.w700, color: cs.primary)),
+                )
+              : Text(body, style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+        ],
       ),
-      child: child,
     );
   }
 }
@@ -88,11 +150,21 @@ class EmptyState extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            width: 64,
-            height: 64,
-            decoration: BoxDecoration(color: cs.primaryContainer, shape: BoxShape.circle),
-            child: Icon(icon, size: 30, color: cs.onPrimaryContainer),
+          Float(
+            child: Container(
+              width: 68,
+              height: 68,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [cs.primaryContainer, cs.primaryContainer.withAlpha(150)],
+                ),
+                boxShadow: [BoxShadow(color: cs.primary.withAlpha(40), blurRadius: 20, offset: const Offset(0, 8))],
+              ),
+              child: Icon(icon, size: 30, color: cs.onPrimaryContainer),
+            ),
           ),
           const SizedBox(height: 16),
           Text(title, style: tt.titleMedium, textAlign: TextAlign.center),
@@ -217,9 +289,14 @@ class _Drum extends StatelessWidget {
       width: width,
       height: height,
       decoration: BoxDecoration(
-        color: AppColors.drum,
+        gradient: const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xFF1B2B26), AppColors.drum, Color(0xFF0A1310)],
+        ),
         borderRadius: radius,
         border: Border.all(color: AppColors.drumStroke),
+        boxShadow: const [BoxShadow(color: Color(0x40000000), blurRadius: 6, offset: Offset(0, 3))],
       ),
       child: ClipRRect(
         borderRadius: radius,
@@ -370,22 +447,22 @@ class StatusPill extends StatelessWidget {
       case PillKind.locked:
         bg = cs.primaryContainer;
         fg = cs.onPrimaryContainer;
-        ic ??= Icons.lock;
+        ic ??= AppIcons.lock;
         break;
       case PillKind.open:
         bg = cs.tertiaryContainer;
         fg = cs.onTertiaryContainer;
-        ic ??= Icons.radio_button_checked;
+        
         break;
       case PillKind.cancelled:
         bg = cs.surfaceContainerHigh;
         fg = cs.onSurfaceVariant;
-        ic ??= Icons.block;
+        ic ??= AppIcons.cancelled;
         break;
       case PillKind.flag:
         bg = cs.errorContainer;
         fg = cs.onErrorContainer;
-        ic ??= Icons.flag;
+        ic ??= AppIcons.flag;
         break;
       case PillKind.info:
         bg = cs.surfaceContainerHigh;
@@ -393,12 +470,18 @@ class StatusPill extends StatelessWidget {
         break;
     }
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(20)),
+      padding: EdgeInsets.symmetric(horizontal: 9, vertical: kind == PillKind.open && ic == null ? 1 : 4),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: fg.withAlpha(30)),
+      ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (ic != null) ...[Icon(ic, size: 13, color: fg), const SizedBox(width: 4)],
+          if (kind == PillKind.open && ic == null)
+            Padding(padding: const EdgeInsets.only(right: 2), child: PulseDot(color: fg, size: 7))
+          else if (ic != null) ...[Icon(ic, size: 13, color: fg), const SizedBox(width: 5)],
           Text(
             label,
             style: Theme.of(context).textTheme.labelSmall?.copyWith(color: fg, fontWeight: FontWeight.w600),
@@ -492,8 +575,8 @@ class _RoutePainter extends CustomPainter {
 // ------------------------------------------------------------------ ledger
 
 /// A label and a figure joined by a dotted leader, like a line in a log book.
-/// The dots run behind the whole row and the text sits on a matching background,
-/// so a long label wraps instead of overflowing, even at large text sizes.
+/// The leader runs from the end of the label's last line to the figure, so a long label
+/// wraps instead of overflowing, even at large text sizes, and the panel behind shows through.
 class LedgerRow extends StatelessWidget {
   final String label;
   final String value;
@@ -506,40 +589,49 @@ class LedgerRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final tt = Theme.of(context).textTheme;
+    final labelStyle = (strong ? tt.titleMedium : tt.bodyMedium)!;
+    final valueStyle = numStyle(strong ? 24 : 18,
+        weight: strong ? FontWeight.w700 : FontWeight.w600, color: valueColor ?? cs.onSurface);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 7),
-      child: Stack(
-        children: [
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 5,
-            height: 2,
-            child: CustomPaint(painter: _DotsPainter(cs.outlineVariant)),
-          ),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.end,
+      child: LayoutBuilder(
+        builder: (context, c) {
+          final scaler = MediaQuery.textScalerOf(context);
+          final dir = Directionality.of(context);
+          final vp = TextPainter(
+            text: TextSpan(text: value, style: valueStyle),
+            textDirection: dir,
+            textScaler: scaler,
+            maxLines: 1,
+          )..layout();
+          final lp = TextPainter(text: TextSpan(text: label, style: labelStyle), textDirection: dir, textScaler: scaler)
+            ..layout(maxWidth: math.max(0.0, c.maxWidth - vp.width - 16));
+          final lines = lp.computeLineMetrics();
+          final lastLine = lines.isEmpty ? 0.0 : lines.last.width;
+          final dotsLeft = lastLine + 8;
+          final dotsRight = vp.width + 8;
+          return Stack(
             children: [
-              Flexible(
-                child: Container(
-                  color: cs.surface,
-                  padding: const EdgeInsets.only(right: 8),
-                  child: Text(label, style: strong ? tt.titleMedium : tt.bodyMedium),
+              if (c.maxWidth - dotsLeft - dotsRight > 6)
+                Positioned(
+                  left: dotsLeft,
+                  right: dotsRight,
+                  bottom: 5,
+                  height: 2,
+                  child: CustomPaint(painter: _DotsPainter(cs.outline.withAlpha(110))),
                 ),
-              ),
-              Container(
-                color: cs.surface,
-                padding: const EdgeInsets.only(left: 8),
-                child: Text(
-                  value,
-                  style: numStyle(strong ? 24 : 18,
-                      weight: strong ? FontWeight.w700 : FontWeight.w600, color: valueColor ?? cs.onSurface),
-                ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Flexible(child: Text(label, style: labelStyle)),
+                  const SizedBox(width: 16),
+                  Text(value, style: valueStyle),
+                ],
               ),
             ],
-          ),
-        ],
+          );
+        },
       ),
     );
   }
@@ -634,7 +726,13 @@ class _Node extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     if (state == 2) {
-      return CircleAvatar(radius: 14, backgroundColor: cs.primary, child: Icon(Icons.check, size: 17, color: cs.onPrimary));
+      return TweenAnimationBuilder<double>(
+        tween: Tween<double>(begin: 0, end: 1),
+        duration: Motion.slow,
+        curve: Curves.elasticOut,
+        builder: (context, v, child) => Transform.scale(scale: v, child: child),
+        child: CircleAvatar(radius: 14, backgroundColor: cs.primary, child: Icon(AppIcons.check, size: 16, color: cs.onPrimary)),
+      );
     }
     return Container(
       width: 28,

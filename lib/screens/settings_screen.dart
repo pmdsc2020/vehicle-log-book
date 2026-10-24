@@ -5,6 +5,7 @@ import '../models/trip.dart';
 import '../services/app_state.dart';
 import '../services/trip_rules.dart';
 import '../ui/format.dart';
+import '../ui/theme.dart';
 import '../ui/widgets.dart';
 
 class SettingsScreen extends StatelessWidget {
@@ -50,19 +51,29 @@ class SettingsScreen extends StatelessWidget {
     final modeKey = mode == ThemeMode.light ? 'light' : (mode == ThemeMode.dark ? 'dark' : 'system');
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 28),
+      padding: pagePadding(context),
       children: [
         Text('Settings', style: tt.headlineSmall),
         const SizedBox(height: 14),
         Surface(
           child: Row(
             children: [
-              CircleAvatar(
-                radius: 28,
-                backgroundColor: cs.primaryContainer,
+              Container(
+                width: 60,
+                height: 60,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: AppGradients.brand(cs.brightness),
+                  ),
+                  boxShadow: [BoxShadow(color: cs.primary.withAlpha(60), blurRadius: 16, offset: const Offset(0, 6))],
+                ),
                 child: Text(
                   initialsOf(p.name),
-                  style: tt.titleLarge?.copyWith(color: cs.onPrimaryContainer, fontWeight: FontWeight.w700),
+                  style: tt.titleLarge?.copyWith(color: Colors.white, fontWeight: FontWeight.w700),
                 ),
               ),
               const SizedBox(width: 14),
@@ -83,7 +94,7 @@ class SettingsScreen extends StatelessWidget {
                       spacing: 6,
                       runSpacing: 6,
                       children: [
-                        StatusPill(roleLabel(p.role), kind: PillKind.info, icon: Icons.badge_outlined),
+                        StatusPill(roleLabel(p.role), kind: PillKind.info, icon: AppIcons.role),
                         StatusPill('Code ${p.id}', kind: PillKind.info),
                       ],
                     ),
@@ -113,9 +124,18 @@ class SettingsScreen extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         child: Row(
                           children: [
-                            Icon(
-                              p.vehicles[i].type == 'Four-wheeler' ? Icons.directions_car_outlined : Icons.two_wheeler,
-                              color: cs.primary,
+                            Container(
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                color: cs.primaryContainer,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Icon(
+                                p.vehicles[i].type == 'Four-wheeler' ? AppIcons.fourWheeler : AppIcons.twoWheeler,
+                                color: cs.onPrimaryContainer,
+                                size: 21,
+                              ),
                             ),
                             const SizedBox(width: 14),
                             Expanded(child: Text(p.vehicles[i].no, style: tt.titleSmall)),
@@ -147,9 +167,9 @@ class SettingsScreen extends StatelessWidget {
         SegmentedButton<String>(
           showSelectedIcon: false,
           segments: const [
-            ButtonSegment<String>(value: 'system', label: Text('Phone'), icon: Icon(Icons.brightness_auto_outlined)),
-            ButtonSegment<String>(value: 'light', label: Text('Light'), icon: Icon(Icons.light_mode_outlined)),
-            ButtonSegment<String>(value: 'dark', label: Text('Dark'), icon: Icon(Icons.dark_mode_outlined)),
+            ButtonSegment<String>(value: 'system', label: Text('Phone'), icon: Icon(AppIcons.phoneTheme)),
+            ButtonSegment<String>(value: 'light', label: Text('Light'), icon: Icon(AppIcons.sun)),
+            ButtonSegment<String>(value: 'dark', label: Text('Dark'), icon: Icon(AppIcons.moon)),
           ],
           selected: {modeKey},
           onSelectionChanged: (v) => state.setThemeMode(v.first),
@@ -161,7 +181,7 @@ class SettingsScreen extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(broken == 0 ? Icons.verified_user : Icons.gpp_bad, color: broken == 0 ? cs.primary : cs.error),
+              Icon(broken == 0 ? AppIcons.sealOk : AppIcons.sealBad, color: broken == 0 ? cs.primary : cs.error),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -195,7 +215,7 @@ class SettingsScreen extends StatelessWidget {
             foregroundColor: cs.error,
             side: BorderSide(color: cs.error.withAlpha(140)),
           ),
-          icon: const Icon(Icons.delete_outline),
+          icon: const Icon(AppIcons.erase),
           label: const Text('Erase all data'),
         ),
         const SizedBox(height: 6),

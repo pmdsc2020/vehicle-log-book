@@ -1,12 +1,14 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 
 import '../models/trip.dart';
 import '../services/app_state.dart';
 import '../services/trip_rules.dart';
 import 'format.dart';
+import 'motion.dart';
 import 'theme.dart';
 import 'widgets.dart';
 
@@ -59,65 +61,81 @@ class TripTile extends StatelessWidget {
       );
     }
 
-    return Material(
-      color: cs.surface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: open ? cs.tertiary : cs.outlineVariant, width: open ? 1.5 : 1),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
+    final accent = open ? cs.tertiary : (cancelled ? cs.outlineVariant : cs.primary);
+    return GlassCard(
+      onTap: onTap,
+      radius: 18,
+      padding: EdgeInsets.zero,
+      borderColor: open ? cs.tertiary : null,
+      borderWidth: open ? 1.5 : 1,
+      semanticLabel: onTap == null ? null : 'Trip to ${trip.to}',
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Status stripe: green locked, amber open, grey cancelled.
+            Container(
+              width: 4,
+              margin: const EdgeInsets.symmetric(vertical: 14),
+              decoration: BoxDecoration(
+                color: accent,
+                borderRadius: const BorderRadius.horizontal(right: Radius.circular(4)),
+              ),
+            ),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 14, 16, 14),
+                child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      trip.to,
-                      style: tt.titleMedium?.copyWith(
-                        decoration: cancelled ? TextDecoration.lineThrough : null,
-                        color: cancelled ? cs.onSurfaceVariant : cs.onSurface,
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            trip.to,
+                            style: tt.titleMedium?.copyWith(
+                              decoration: cancelled ? TextDecoration.lineThrough : null,
+                              color: cancelled ? cs.onSurfaceVariant : cs.onSurface,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'from ${trip.from}',
+                            style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            meta,
+                            style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 8),
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 6,
+                            children: [
+                              if (open) const StatusPill('On a trip', kind: PillKind.open),
+                              if (cancelled) const StatusPill('Cancelled', kind: PillKind.cancelled),
+                              if (trip.status == 'closed') const StatusPill('Locked', kind: PillKind.locked),
+                              for (final f in flags) StatusPill(f, kind: PillKind.flag),
+                            ],
+                          ),
+                        ],
                       ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'from ${trip.from}',
-                      style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      meta,
-                      style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 6,
-                      runSpacing: 6,
-                      children: [
-                        if (open) const StatusPill('On a trip', kind: PillKind.open),
-                        if (cancelled) const StatusPill('Cancelled', kind: PillKind.cancelled),
-                        if (trip.status == 'closed') const StatusPill('Locked', kind: PillKind.locked),
-                        for (final f in flags) StatusPill(f, kind: PillKind.flag),
-                      ],
-                    ),
+                    const SizedBox(width: 12),
+                    figure,
                   ],
                 ),
               ),
-              const SizedBox(width: 12),
-              figure,
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -253,7 +271,7 @@ class TripDetail extends StatelessWidget {
         if (cancelled && trip.cancel != null) ...[
           const SizedBox(height: 18),
           _Callout(
-            icon: Icons.block,
+            icon: AppIcons.cancelled,
             title: 'Cancelled',
             body: '${trip.cancel!['reason'] ?? ''}',
           ),
@@ -288,23 +306,24 @@ class TripDetail extends StatelessWidget {
         ],
         if (trip.late != null) ...[
           const SizedBox(height: 14),
-          _Callout(icon: Icons.schedule, title: 'Late entry', body: '${trip.late!['reason'] ?? ''}'),
+          _Callout(icon: AppIcons.clock, title: 'Late entry', body: '${trip.late!['reason'] ?? ''}'),
         ],
         if (trip.meterReset != null) ...[
           const SizedBox(height: 12),
-          _Callout(icon: Icons.speed, title: 'Meter was reset or replaced', body: '${trip.meterReset!['reason'] ?? ''}'),
+          _Callout(
+              icon: AppIcons.meter, title: 'Meter was reset or replaced', body: '${trip.meterReset!['reason'] ?? ''}'),
         ],
         if (prior != null) ...[
           const SizedBox(height: 12),
           prior['none'] == true
               ? const _Callout(
-                  icon: Icons.report_problem_outlined,
+                  icon: AppIcons.warn,
                   title: 'No prior approval',
                   body: 'This trip went above the monthly limit without approval taken before travelling.',
                   warn: true,
                 )
               : _Callout(
-                  icon: Icons.verified_outlined,
+                  icon: AppIcons.approved,
                   title: 'Approved before travelling',
                   body: [
                     '${prior['by'] ?? ''}',
@@ -321,7 +340,7 @@ class TripDetail extends StatelessWidget {
             if (!open)
               TextButton.icon(
                 onPressed: () => _addNote(context, state, trip),
-                icon: const Icon(Icons.add, size: 20),
+                icon: const Icon(AppIcons.add, size: 20),
                 label: const Text('Add a note'),
               ),
           ],
@@ -479,9 +498,11 @@ class _PhotoThumb extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.image_not_supported_outlined, color: cs.outline),
+          Icon(AppIcons.noPhoto, color: cs.outline),
           const SizedBox(height: 4),
-          Text(text, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: cs.onSurfaceVariant), textAlign: TextAlign.center),
+          Text(text,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+              textAlign: TextAlign.center),
         ],
       ),
     );
@@ -522,10 +543,11 @@ class _PhotoThumb extends StatelessWidget {
                   Positioned(
                     top: 4,
                     right: 4,
-                    child: IconButton(
+                    child: IconButton.filledTonal(
                       tooltip: 'Close',
                       color: Colors.white,
-                      icon: const Icon(Icons.close),
+                      style: IconButton.styleFrom(backgroundColor: Colors.black54),
+                      icon: const Icon(AppIcons.close),
                       onPressed: () => Navigator.pop(ctx),
                     ),
                   ),
@@ -537,11 +559,33 @@ class _PhotoThumb extends StatelessWidget {
     return Semantics(
       label: caption,
       button: onTap != null,
-      child: GestureDetector(
+      child: Pressable(
         onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        pressedScale: 0.96,
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(10),
-          child: AspectRatio(aspectRatio: 4 / 3, child: inner),
+          borderRadius: BorderRadius.circular(12),
+          child: AspectRatio(
+            aspectRatio: 4 / 3,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                inner,
+                if (onTap != null)
+                  const Positioned(
+                    right: 6,
+                    bottom: 6,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(color: Colors.black54, shape: BoxShape.circle),
+                      child: Padding(
+                        padding: EdgeInsets.all(5),
+                        child: Icon(LucideIcons.maximize2, size: 14, color: Colors.white),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -561,7 +605,7 @@ class _SealBlock extends StatelessWidget {
         color: cs.surfaceContainerLow,
         child: Row(
           children: [
-            Icon(Icons.lock_open, color: cs.onSurfaceVariant),
+            Icon(AppIcons.lockOpen, color: cs.onSurfaceVariant),
             const SizedBox(width: 12),
             Expanded(
               child: Text(
@@ -580,7 +624,7 @@ class _SealBlock extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(ok ? Icons.verified_user : Icons.gpp_bad, color: ok ? cs.primary : cs.error),
+          Icon(ok ? AppIcons.sealOk : AppIcons.sealBad, color: ok ? cs.primary : cs.error),
           const SizedBox(width: 12),
           Expanded(
             child: Column(

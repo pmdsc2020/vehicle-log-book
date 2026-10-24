@@ -19,6 +19,7 @@ dependencies:
   file_picker: ^8.0.0
   uuid: ^4.3.3
   provider: ^6.1.2
+  lucide_icons_flutter: ^4.0.1
 
 dev_dependencies:
   flutter_test:

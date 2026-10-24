@@ -24,8 +24,18 @@ monthly report file, and the Block Integrator / Accountant / District Integrator
 The logo is a map pin whose hole is a keyhole (the entry locks), with an odometer under it.
 The app is built on the same idea: odometer drums for the month's km, ledger rows for figures,
 a four-step sign-off (staff, Block Integrator, Accountant, District Integrator).
-Type is Barlow Semi Condensed (OFL, in `assets/fonts`). Colours and text styles are in `lib/ui/theme.dart`,
-shared widgets in `lib/ui/widgets.dart`. The logo source and the script that makes the icons are in `brand/`.
+Type is Barlow Semi Condensed (OFL, in `assets/fonts`). Colours, glass tints, gradients, text styles and the
+Lucide icon set (`AppIcons`) are in `lib/ui/theme.dart`, shared widgets in `lib/ui/widgets.dart`.
+The logo source and the script that makes the icons are in `brand/`.
+
+Motion and glass live in `lib/ui/motion.dart`: `GlassCard` (frosted card, lifts on hover and squashes on press
+when tappable), `GlassBar` (blurred floating bar), `AuroraBackground`, `GlowButton` (main call to action),
+`FadeSlideIn` (staggered entrance), `ThemeToggle`, `SpringIconButton`, `PulseDot` and `Float`.
+Every looping or decorative animation stops when the phone asks for reduced motion.
+
+The app opens with `lib/screens/splash_screen.dart`: it starts on the same green and logo as the phone's launch
+screen, then the pin hops, the keyhole turns and locks, the odometer drums roll round and the name rises in.
+Tap to skip.
 
 ## Screens test
 

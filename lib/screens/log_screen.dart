@@ -47,7 +47,7 @@ class _LogScreenState extends State<LogScreen> {
     }
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 28),
+      padding: pagePadding(context),
       children: [
         Text('Log book', style: tt.headlineSmall),
         const SizedBox(height: 14),
@@ -74,7 +74,7 @@ class _LogScreenState extends State<LogScreen> {
             padding: const EdgeInsets.only(top: 12),
             child: Surface(
               child: EmptyState(
-                icon: Icons.menu_book_outlined,
+                icon: AppIcons.log,
                 title: 'No entries in ${fmtMonthLong(month)}',
                 body: 'Trips you log will appear here, locked, with the odometer photos.',
               ),
