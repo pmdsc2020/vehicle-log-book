@@ -358,6 +358,15 @@ Future<AppState> _reviewerWithReports(WidgetTester tester, Profile me, List<List
   return s!;
 }
 
+/// Opens the first report in the Review tab. The screen spins while it checks the photos from disk,
+/// and a spinner never settles, so wait for the real file reads before settling.
+Future<void> _openFirstReport(WidgetTester tester) async {
+  await tester.tap(find.byType(ReportTile).first);
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 600));
+  await _settleReal(tester);
+}
+
 /// Lets file reads that started while building a screen finish, then draws the result.
 Future<void> _settleReal(WidgetTester tester) async {
   await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 600)));
@@ -682,10 +691,8 @@ void main() {
     final s = await _reviewerWithReports(tester, _biPerson, [[]]);
     await _pumpApp(tester, s);
     await _tab(tester, 'Review');
-    await tester.tap(find.byType(ReportTile).first);
-    await tester.pumpAndSettle();
+    await _openFirstReport(tester);
     await _resize(tester, const Size(360, 4200));
-    await _settleReal(tester);
     expect(find.text('Every check passed'), findsOneWidget);
     expect(find.text('Checked, send to Accountant'), findsWidgets);
     await _shot(tester, '29_review_bi');
@@ -710,10 +717,8 @@ void main() {
     ]);
     await _pumpApp(tester, s);
     await _tab(tester, 'Review');
-    await tester.tap(find.byType(ReportTile).first);
-    await tester.pumpAndSettle();
+    await _openFirstReport(tester);
     await _resize(tester, const Size(360, 4200));
-    await _settleReal(tester);
     expect(find.text('Approve'), findsWidgets);
     final sw = find.byType(Switch);
     if (sw.evaluate().isNotEmpty) {
@@ -728,9 +733,7 @@ void main() {
     final s = await _reviewerWithReports(tester, _biPerson, [[]]);
     await _pumpApp(tester, s, size: _tall);
     await _tab(tester, 'Review');
-    await tester.tap(find.byType(ReportTile).first);
-    await tester.pumpAndSettle();
-    await _settleReal(tester);
+    await _openFirstReport(tester);
     await _tapText(tester, 'Chinchpada');
     expect(find.text('Add a note'), findsNothing);
     expect(find.text('Odometer'), findsOneWidget);
@@ -742,10 +745,8 @@ void main() {
     await _pumpApp(tester, s, mode: ThemeMode.dark, textScale: 1.3);
     await _tab(tester, 'Review');
     await _shot(tester, '33_dark_review_inbox');
-    await tester.tap(find.byType(ReportTile).first);
-    await tester.pumpAndSettle();
+    await _openFirstReport(tester);
     await _resize(tester, const Size(360, 5200));
-    await _settleReal(tester);
     await _shot(tester, '34_dark_review_report');
   }, skip: !_enabled);
 }
