@@ -352,6 +352,8 @@ Future<AppState> _reviewerWithReports(WidgetTester tester, Profile me, List<List
       p = _signSteps(p, reports[i]);
       await reviewer.storage.saveReport(p, photos: photos);
       reviewer.reports = [...reviewer.reports, p];
+      // Run the photo checks now, with real file reads. The screen then gets the answer at once.
+      await reviewer.checkReport(p);
     }
     return reviewer;
   });

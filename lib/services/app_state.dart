@@ -308,9 +308,18 @@ class AppState extends ChangeNotifier {
     return signed;
   }
 
-  /// Runs every check on a report held here, reading the photos from this phone.
-  Future<PackageCheck> checkReport(ReportPackage p) async =>
-      verifyReport(p, await storage.hashReportPhotos(p), previous: previousReportOf(p));
+  final Map<String, PackageCheck> _checks = {};
+
+  /// Runs every check on a report held here, reading the photos from this phone. The result is
+  /// kept for the session, so opening the same report again is instant.
+  Future<PackageCheck> checkReport(ReportPackage p) async {
+    final key = '${p.key}:${p.signoffs.length}';
+    final known = _checks[key];
+    if (known != null) return known;
+    final result = verifyReport(p, await storage.hashReportPhotos(p), previous: previousReportOf(p));
+    _checks[key] = result;
+    return result;
+  }
 
   /// Writes the report and its photos to one file ready to share.
   Future<File> exportReport(ReportPackage p, {Directory? dir}) async {
@@ -329,6 +338,7 @@ class AppState extends ChangeNotifier {
     trips = [];
     meta = {};
     reports = [];
+    _checks.clear();
     notifyListeners();
   }
 }

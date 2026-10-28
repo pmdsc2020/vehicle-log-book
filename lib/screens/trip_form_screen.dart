@@ -1150,7 +1150,7 @@ class _TripFormScreenState extends State<TripFormScreen> {
             borderRadius: BorderRadius.circular(26),
             padding: const EdgeInsets.all(8),
             child: GlowButton(
-              onPressed: _busy ? null : _submit,
+              onPressed: (_busy || (!isEnd && _state.monthLocked(monthOf(_tripDate)))) ? null : _submit,
               busy: _saving,
               icon: AppIcons.lock,
               label: _saving ? 'Saving' : (isStart ? 'Lock and start' : 'Lock and save'),
