@@ -736,7 +736,11 @@ void main() {
     await _pumpApp(tester, s, size: _tall);
     await _tab(tester, 'Review');
     await _openFirstReport(tester);
-    await _tapText(tester, 'Chinchpada');
+    final tile = find.byType(TripTile).first;
+    await tester.ensureVisible(tile);
+    await tester.pumpAndSettle();
+    await tester.tap(tile);
+    await tester.pumpAndSettle();
     expect(find.text('Add a note'), findsNothing);
     expect(find.text('Odometer'), findsOneWidget);
     await _shot(tester, '32_report_trip_detail');
