@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 
+import '../models/profile.dart';
 import '../models/trip.dart';
 import '../services/app_state.dart';
 import '../services/trip_rules.dart';
@@ -160,6 +161,32 @@ Future<void> showTripDetail(BuildContext context, String tripId) {
   );
 }
 
+/// Where the picture for a meter reading is kept on this phone.
+typedef PhotoFinder = File Function(String key);
+
+/// Opens a trip from a report sent by someone else. Read only: no notes can be added, and the
+/// pictures come from the report's own folder.
+Future<void> showReportTripDetail(BuildContext context, Trip trip, AppSettings settings, PhotoFinder photoFile) {
+  return showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    useSafeArea: true,
+    builder: (ctx) => DraggableScrollableSheet(
+      expand: false,
+      initialChildSize: 0.9,
+      minChildSize: 0.5,
+      maxChildSize: 0.96,
+      builder: (ctx, controller) => TripDetailView(
+        trip: trip,
+        settings: settings,
+        photoFile: photoFile,
+        controller: controller,
+      ),
+    ),
+  );
+}
+
+/// A trip of this phone's own log book, looked up by id so it follows changes (a new note).
 class TripDetail extends StatelessWidget {
   final String tripId;
   final ScrollController? controller;
@@ -207,8 +234,6 @@ class TripDetail extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
-    final cs = Theme.of(context).colorScheme;
-    final tt = Theme.of(context).textTheme;
 
     Trip? t;
     for (final x in state.trips) {
@@ -218,7 +243,37 @@ class TripDetail extends StatelessWidget {
       return const Center(child: Text('This entry is no longer in the log book.'));
     }
     final trip = t;
-    final settings = state.settings;
+    return TripDetailView(
+      trip: trip,
+      settings: state.settings,
+      controller: controller,
+      photoFile: (key) => File(state.storage.photoPath(key)),
+      onAddNote: () => _addNote(context, state, trip),
+    );
+  }
+}
+
+/// The full record of one trip. Pass [onAddNote] to allow notes; leave it out for a read-only view.
+class TripDetailView extends StatelessWidget {
+  final Trip trip;
+  final AppSettings settings;
+  final ScrollController? controller;
+  final PhotoFinder photoFile;
+  final VoidCallback? onAddNote;
+
+  const TripDetailView({
+    super.key,
+    required this.trip,
+    required this.settings,
+    required this.photoFile,
+    this.controller,
+    this.onAddNote,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final tt = Theme.of(context).textTheme;
     // Late entry, meter reset and approval each get their own note below. Show the rest as pills.
     final flags = tripFlags(trip, settings).where((f) => f == 'Photo not fresh' || f == 'High km').toList();
     final cancelled = trip.status == 'cancelled';
@@ -282,12 +337,12 @@ class TripDetail extends StatelessWidget {
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(child: _ReadingCard(label: 'Opening', reading: trip.start)),
+            Expanded(child: _ReadingCard(label: 'Opening', reading: trip.start, photoFile: photoFile)),
             const SizedBox(width: 12),
             Expanded(
               child: end == null
                   ? _ReadingCard.pending(label: 'Closing', text: cancelled ? 'No closing reading' : 'Not ended yet')
-                  : _ReadingCard(label: 'Closing', reading: end),
+                  : _ReadingCard(label: 'Closing', reading: end, photoFile: photoFile),
             ),
           ],
         ),
@@ -337,9 +392,9 @@ class TripDetail extends StatelessWidget {
         Row(
           children: [
             Expanded(child: Text('Notes', style: tt.titleMedium)),
-            if (!open)
+            if (!open && onAddNote != null)
               TextButton.icon(
-                onPressed: () => _addNote(context, state, trip),
+                onPressed: onAddNote,
                 icon: const Icon(AppIcons.add, size: 20),
                 label: const Text('Add a note'),
               ),
@@ -371,7 +426,7 @@ class TripDetail extends StatelessWidget {
               ),
             ),
         const SizedBox(height: 22),
-        _SealBlock(trip: trip),
+        _SealBlock(trip: trip, forReviewer: onAddNote == null),
       ],
     );
   }
@@ -448,10 +503,13 @@ class _ReadingCard extends StatelessWidget {
   final String label;
   final Reading? reading;
   final String? pendingText;
+  final PhotoFinder? photoFile;
 
-  const _ReadingCard({required this.label, required Reading this.reading}) : pendingText = null;
+  const _ReadingCard({required this.label, required Reading this.reading, required PhotoFinder this.photoFile})
+      : pendingText = null;
   const _ReadingCard.pending({required this.label, required String text})
       : reading = null,
+        photoFile = null,
         pendingText = text;
 
   @override
@@ -476,7 +534,7 @@ class _ReadingCard extends StatelessWidget {
             const SizedBox(height: 4),
             Text(fmtTime(r.at), style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
             const SizedBox(height: 10),
-            _PhotoThumb(photoKey: r.photoKey, caption: '$label reading'),
+            _PhotoThumb(photoKey: r.photoKey, caption: '$label reading', photoFile: photoFile!),
           ],
         ],
       ),
@@ -487,7 +545,8 @@ class _ReadingCard extends StatelessWidget {
 class _PhotoThumb extends StatelessWidget {
   final String? photoKey;
   final String caption;
-  const _PhotoThumb({required this.photoKey, required this.caption});
+  final PhotoFinder photoFile;
+  const _PhotoThumb({required this.photoKey, required this.caption, required this.photoFile});
 
   Widget _placeholder(BuildContext context, String text) {
     final cs = Theme.of(context).colorScheme;
@@ -516,7 +575,7 @@ class _PhotoThumb extends StatelessWidget {
     if (key == null || key.isEmpty) {
       inner = _placeholder(context, 'No photo');
     } else {
-      final file = File(context.read<AppState>().storage.photoPath(key));
+      final file = photoFile(key);
       inner = Image.file(
         file,
         fit: BoxFit.cover,
@@ -594,7 +653,10 @@ class _PhotoThumb extends StatelessWidget {
 
 class _SealBlock extends StatelessWidget {
   final Trip trip;
-  const _SealBlock({required this.trip});
+
+  /// Shown to someone checking another person's report.
+  final bool forReviewer;
+  const _SealBlock({required this.trip, this.forReviewer = false});
 
   @override
   Widget build(BuildContext context) {
@@ -635,7 +697,9 @@ class _SealBlock extends StatelessWidget {
                 Text(
                   ok
                       ? 'Locked ${trip.lockedAt == null ? '' : fmtDateTime(trip.lockedAt!)}. Nothing in this entry has changed since.'
-                      : 'Something in this entry changed after it was locked. Show this to your Block Integrator.',
+                      : forReviewer
+                          ? 'Something in this entry changed after it was locked. Do not sign this report.'
+                          : 'Something in this entry changed after it was locked. Show this to your Block Integrator.',
                   style: tt.bodyMedium,
                 ),
                 const SizedBox(height: 8),

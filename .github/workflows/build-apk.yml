@@ -2,11 +2,12 @@ name: Build APK
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, 'feature/**' ]
   workflow_dispatch:
 
+# TEMPORARY: the screenshot step below pushes PNGs to the throwaway branch ci-screenshots.
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
@@ -45,7 +46,8 @@ jobs:
             echo "::notice title=flutter analyze::$msg"
           fi
 
-      # Renders every screen at phone size. Reports any layout overflow. Does not block the APK.
+      # Runs every test: the report file and sign-off logic, and a render of every screen at phone size
+      # (which reports any layout overflow). Does not block the APK.
       - name: Screens test
         if: always()
         continue-on-error: true
@@ -58,7 +60,23 @@ jobs:
           export FALLBACK_FONT=$(fc-match -f '%{file}' 'DejaVu Sans' 2>/dev/null || echo /usr/share/fonts/truetype/dejavu/DejaVuSans.ttf)
           echo "icons font: $MATERIAL_ICONS"
           echo "fallback font: $FALLBACK_FONT"
-          flutter test test/shots_test.dart 2>&1 | tee test.log
+          flutter test 2>&1 | tee test.log
+
+      # TEMPORARY (feature branch only): publish screen images so they can be looked at.
+      - name: Publish screen images
+        if: always() && github.ref != 'refs/heads/main'
+        continue-on-error: true
+        run: |
+          if ls shots/*.png >/dev/null 2>&1; then
+            rm -rf /tmp/shotrepo && mkdir /tmp/shotrepo && cp shots/*.png /tmp/shotrepo/
+            cd /tmp/shotrepo
+            git init -q -b ci-screenshots
+            git config user.name "ci"
+            git config user.email "ci@users.noreply.github.com"
+            git add .
+            git commit -q -m "Screenshots for ${GITHUB_SHA}"
+            git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" ci-screenshots
+          fi
 
       - name: Upload screen images
         if: always()
@@ -74,7 +92,7 @@ jobs:
         run: |
           if [ -f test.log ]; then
             echo "::notice title=flutter test::$(tail -3 test.log | tr '\n' ' ' | cut -c1-300)"
-            msg=$( { grep -E "Error:|error:|Expected:|Actual:|Some tests failed|isn't defined|isn't a" test.log | cut -c1-260 | head -20; grep -E -A2 "overflowed by|relevant error-causing widget" test.log | cut -c1-260 | head -30; } || true )
+            msg=$( { grep -E "Error:|error:|Expected:|Actual:|Some tests failed|isn't defined|isn't a|\[E\]" test.log | cut -c1-260 | head -20; grep -E -A2 "overflowed by|relevant error-causing widget" test.log | cut -c1-260 | head -30; } || true )
             if [ -n "$msg" ]; then
               msg=$(printf '%s' "$msg" | sed 's/%/%25/g' | sed ':a;N;$!ba;s/\n/%0A/g')
               echo "::error title=flutter test::$msg"

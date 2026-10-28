@@ -10,6 +10,7 @@ import '../ui/motion.dart';
 import '../ui/theme.dart';
 import '../ui/trip_tiles.dart';
 import '../ui/widgets.dart';
+import 'signoff_panel.dart';
 
 /// The month as a statement: what was travelled, what is payable, who signs it off.
 class ReportScreen extends StatefulWidget {
@@ -101,7 +102,7 @@ class _ReportScreenState extends State<ReportScreen> {
             child: Column(
               children: [
                 for (final p in projects)
-                  _ProjectBar(
+                  ProjectBar(
                     name: p,
                     km: sum.kmByProject[p] ?? 0,
                     trips: sum.tripsByProject[p] ?? 0,
@@ -127,38 +128,17 @@ class _ReportScreenState extends State<ReportScreen> {
         ],
         const SizedBox(height: 8),
         const SectionTitle('Sign-off'),
-        Surface(
-          padding: const EdgeInsets.fromLTRB(12, 18, 12, 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const ApprovalChain(done: 0),
-              const SizedBox(height: 18),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 6),
-                child: Text(
-                  'Your report goes to the Block Integrator first, then the Accountant, then the District Integrator.',
-                  style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
-                ),
-              ),
-            ],
+        SignoffPanel(month: month),
+        const SizedBox(height: 4),
+        Center(
+          child: TextButton.icon(
+            onPressed: () => Share.share(
+              _statement(state.profile!.name, month, sum, settings, flagged.length),
+              subject: 'Vehicle log, ${fmtMonthLong(month)}',
+            ),
+            icon: const Icon(AppIcons.share, size: 18),
+            label: const Text('Share the figures as a message'),
           ),
-        ),
-        const SizedBox(height: 14),
-        GlowButton(
-          icon: AppIcons.share,
-          label: 'Share the statement',
-          onPressed: () => Share.share(
-            _statement(state.profile!.name, month, sum, settings, flagged.length),
-            subject: 'Vehicle log, ${fmtMonthLong(month)}',
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'Sends this month\'s figures as a message, for WhatsApp or email. '
-          'Sending the report for sign-off in the app is not in this version yet.',
-          style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
-          textAlign: TextAlign.center,
         ),
       ],
     );
@@ -193,13 +173,13 @@ class _ReportScreenState extends State<ReportScreen> {
   String _rate(double r) => r == r.roundToDouble() ? r.round().toString() : r.toStringAsFixed(2);
 }
 
-class _ProjectBar extends StatelessWidget {
+class ProjectBar extends StatelessWidget {
   final String name;
   final int km;
   final int trips;
   final double fraction;
 
-  const _ProjectBar({required this.name, required this.km, required this.trips, required this.fraction});
+  const ProjectBar({required this.name, required this.km, required this.trips, required this.fraction});
 
   @override
   Widget build(BuildContext context) {

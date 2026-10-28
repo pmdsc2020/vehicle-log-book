@@ -105,6 +105,9 @@ class AppIcons {
   static const twoWheeler = LucideIcons.bike;
   static const fourWheeler = LucideIcons.car;
   static const share = LucideIcons.share2;
+  static const send = LucideIcons.send;
+  static const openFile = LucideIcons.folderOpen;
+  static const inbox = LucideIcons.inbox;
   static const chevron = LucideIcons.chevronRight;
   static const dropdown = LucideIcons.chevronDown;
   static const arrow = LucideIcons.arrowRight;

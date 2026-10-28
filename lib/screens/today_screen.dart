@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../models/profile.dart';
 import '../models/trip.dart';
 import '../services/app_state.dart';
+import '../services/report_service.dart' show stageLabel, statusOf;
 import '../services/trip_rules.dart';
 import '../ui/format.dart';
 import '../ui/motion.dart';
@@ -79,11 +80,12 @@ class TodayScreen extends StatelessWidget {
       body: 'Trip already done',
       onTap: () => _open(context, const TripFormScreen(mode: 'full')),
     );
+    final sent = state.myReport(month);
     final report = ActionCard(
       icon: AppIcons.report,
       title: 'Monthly report',
-      body: fmtRs(sum.amount),
-      accent: true,
+      body: sent == null ? fmtRs(sum.amount) : stageLabel(statusOf(sent)),
+      accent: sent == null,
       onTap: onReport,
     );
 

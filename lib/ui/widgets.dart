@@ -787,10 +787,12 @@ class _DotsPainter extends CustomPainter {
 // ------------------------------------------------------------------ approvals
 
 /// Staff, then Block Integrator, then Accountant, then District Integrator.
-/// [done] is how many of the four have finished their step.
+/// [done] is how many of the four have finished their step. [returnedAt] is the step that sent
+/// the report back, if it came back.
 class ApprovalChain extends StatelessWidget {
   final int done;
-  const ApprovalChain({super.key, required this.done});
+  final int? returnedAt;
+  const ApprovalChain({super.key, required this.done, this.returnedAt});
 
   static const _who = ['You', 'Block Integrator', 'Accountant', 'District Integrator'];
   static const _what = ['submit', 'checks', 'verifies', 'approves'];
@@ -809,7 +811,7 @@ class ApprovalChain extends StatelessWidget {
                 Row(
                   children: [
                     Expanded(child: _Rail(show: i > 0, on: i <= done, color: cs.primary, off: cs.outlineVariant)),
-                    _Node(state: i < done ? 2 : (i == done ? 1 : 0)),
+                    _Node(state: i == returnedAt ? 3 : (i < done ? 2 : (i == done ? 1 : 0))),
                     Expanded(child: _Rail(show: i < 3, on: i < done, color: cs.primary, off: cs.outlineVariant)),
                   ],
                 ),
@@ -820,8 +822,8 @@ class ApprovalChain extends StatelessWidget {
                   textAlign: TextAlign.center,
                 ),
                 Text(
-                  _what[i],
-                  style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+                  i == returnedAt ? 'sent back' : _what[i],
+                  style: tt.bodySmall?.copyWith(color: i == returnedAt ? cs.error : cs.onSurfaceVariant),
                   textAlign: TextAlign.center,
                 ),
               ],
@@ -847,13 +849,20 @@ class _Rail extends StatelessWidget {
 }
 
 class _Node extends StatelessWidget {
-  /// 0 waiting, 1 next to act, 2 finished
+  /// 0 waiting, 1 next to act, 2 finished, 3 sent the report back
   final int state;
   const _Node({required this.state});
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    if (state == 3) {
+      return CircleAvatar(
+        radius: 14,
+        backgroundColor: cs.errorContainer,
+        child: RotatedBox(quarterTurns: 2, child: Icon(AppIcons.arrow, size: 16, color: cs.onErrorContainer)),
+      );
+    }
     if (state == 2) {
       return TweenAnimationBuilder<double>(
         tween: Tween<double>(begin: 0, end: 1),

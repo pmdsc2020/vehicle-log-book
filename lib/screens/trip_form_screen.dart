@@ -9,6 +9,7 @@ import '../models/profile.dart';
 import '../models/trip.dart';
 import '../services/app_state.dart';
 import '../services/trip_rules.dart';
+import '../ui/format.dart' show fmtMonthLong;
 import '../ui/motion.dart';
 import '../ui/theme.dart';
 import '../ui/widgets.dart';
@@ -272,6 +273,14 @@ class _TripFormScreenState extends State<TripFormScreen> {
     final endAt = _mode == 'full' ? isoAt(_date, _hhmm(_tEnd)) : nowIso();
     final okm = _openKm;
     final ckm = _closeKm;
+
+    if (!isEnd && _state.monthLocked(monthOf(date))) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('${fmtMonthLong(monthOf(date))} has been sent for sign-off. '
+            'No trips can be added to it unless the report is returned.'),
+      ));
+      return;
+    }
 
     if (!isEnd) {
       if (project.isEmpty) errs['project'] = 'Choose the project.';
@@ -993,6 +1002,27 @@ class _TripFormScreenState extends State<TripFormScreen> {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
         children: [
+          if (!isEnd && _state.monthLocked(monthOf(_tripDate)))
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Surface(
+                color: cs.errorContainer,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(AppIcons.lock, size: 20, color: cs.onErrorContainer),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        '${fmtMonthLong(monthOf(_tripDate))} is closed. Its report was sent for sign-off, '
+                        'so no trips can be added unless the report is returned.',
+                        style: tt.bodyMedium?.copyWith(color: cs.onErrorContainer),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           if (isEnd) _endSummary(),
           if (isFull)
             _section('When', [

@@ -16,10 +16,13 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:vehicle_log_book/main.dart';
 import 'package:vehicle_log_book/models/profile.dart';
+import 'package:vehicle_log_book/models/report.dart';
 import 'package:vehicle_log_book/models/trip.dart';
 import 'package:vehicle_log_book/services/app_state.dart';
+import 'package:vehicle_log_book/services/report_service.dart';
 import 'package:vehicle_log_book/services/trip_rules.dart';
 import 'package:vehicle_log_book/ui/format.dart';
+import 'package:vehicle_log_book/ui/signoff_widgets.dart';
 import 'package:vehicle_log_book/ui/trip_tiles.dart';
 
 const Size _phone = Size(360, 780);
@@ -249,6 +252,119 @@ Future<AppState> _seed({required bool profile, required String scenario}) async 
   return s;
 }
 
+
+// ---------------------------------------------------------------- report fixtures
+
+final Profile _biPerson = Profile(
+  id: 'DSC-NDB-021',
+  name: 'Ramesh Patil',
+  designation: 'Block Integrator',
+  block: 'Nandurbar',
+  district: 'Nandurbar',
+  mobile: '9890000001',
+  role: 'bi',
+  created: '2026-01-01T00:00:00Z',
+);
+final Profile _accPerson = Profile(
+  id: 'DSC-NDB-002',
+  name: 'Meena Shah',
+  designation: 'Accountant',
+  block: 'Nandurbar',
+  district: 'Nandurbar',
+  mobile: '9890000002',
+  role: 'acc',
+  created: '2026-01-01T00:00:00Z',
+);
+final Profile _diPerson = Profile(
+  id: 'DSC-NDB-001',
+  name: 'Anil Deshmukh',
+  designation: 'District Integrator',
+  block: 'Nandurbar',
+  district: 'Nandurbar',
+  mobile: '9890000003',
+  role: 'di',
+  created: '2026-01-01T00:00:00Z',
+);
+final Profile _otherStaff = Profile(
+  id: 'DSC-NDB-030',
+  name: 'Kavita Gavit',
+  designation: 'Field Coordinator',
+  block: 'Akkalkuwa',
+  district: 'Nandurbar',
+  mobile: '9890000030',
+  role: 'staff',
+  created: '2026-01-01T00:00:00Z',
+);
+
+/// Applies sign-offs in order: 'bi', 'bi-return', 'acc', 'di'.
+ReportPackage _signSteps(ReportPackage p, List<String> steps) {
+  var r = p;
+  for (final st in steps) {
+    switch (st) {
+      case 'bi':
+        r = signReport(r, _biPerson, decision: 'forward', remarks: 'Trips match the field diary. Meter photos are clear.');
+        break;
+      case 'bi-return':
+        r = signReport(r, _biPerson,
+            decision: 'return', remarks: 'The task for the Dhadgaon trip is too short. Add the details and send again.');
+        break;
+      case 'acc':
+        r = signReport(r, _accPerson, decision: 'forward', remarks: 'Km and rate checked against the vouchers.');
+        break;
+      case 'di':
+        r = signReport(r, _diPerson, decision: 'approve', excessApproved: true, remarks: 'Approved with the extra km.');
+        break;
+    }
+  }
+  return r;
+}
+
+/// A staff phone whose month was sent for sign-off, then signed by [steps].
+Future<AppState> _staffWithReport(WidgetTester tester, List<String> steps) async {
+  final s = await tester.runAsync(() async {
+    final a = await _seed(profile: true, scenario: 'over');
+    final sent = await a.submitReport(currentMonth());
+    final p = _signSteps(sent, steps);
+    await a.storage.saveReport(p);
+    a.reports = [p];
+    return a;
+  });
+  return s!;
+}
+
+/// A reviewer phone holding reports from different staff, each signed by the given steps.
+Future<AppState> _reviewerWithReports(WidgetTester tester, Profile me, List<List<String>> reports) async {
+  final s = await tester.runAsync(() async {
+    final staff = await _seed(profile: true, scenario: 'over');
+    final month = currentMonth();
+    final trips = staff.tripsOfMonth(month);
+    final photos = <String, List<int>>{};
+    for (final t in trips) {
+      for (final k in photoKeysOf(t)) {
+        photos[k] = (await staff.storage.getPhotoBytes(k))!;
+      }
+    }
+    final reviewer = await _seed(profile: false, scenario: 'over');
+    await reviewer.setProfile(me);
+    final senders = [staff.profile!, _otherStaff];
+    for (var i = 0; i < reports.length; i++) {
+      var p = buildReport(staff: senders[i], settings: staff.settings, month: month, trips: trips, photos: photos);
+      p = _signSteps(p, reports[i]);
+      await reviewer.storage.saveReport(p, photos: photos);
+      reviewer.reports = [...reviewer.reports, p];
+    }
+    return reviewer;
+  });
+  return s!;
+}
+
+/// Lets file reads that started while building a screen finish, then draws the result.
+Future<void> _settleReal(WidgetTester tester) async {
+  await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 600)));
+  await tester.pump();
+  await tester.pumpAndSettle();
+}
+
 // ---------------------------------------------------------------- harness
 
 Future<AppState> _state(WidgetTester tester, {bool profile = true, String scenario = 'open'}) async {
@@ -291,6 +407,11 @@ Future<void> _pumpApp(
       for (final r in <Reading?>[t.start, t.end]) {
         final k = r?.photoKey;
         if (k != null) await precacheImage(FileImage(File(state.storage.photoPath(k))), ctx);
+      }
+    }
+    for (final r in state.reports) {
+      for (final k in r.photoHashes.keys) {
+        await precacheImage(FileImage(state.storage.reportPhotoFile(r, k)), ctx);
       }
     }
   });
@@ -478,5 +599,153 @@ void main() {
     await _tab(tester, 'Review');
     await _shot(tester, '19_review');
     expect(roleLabel('di'), 'District Integrator');
+  }, skip: !_enabled);
+
+  testWidgets('report not sent yet', (tester) async {
+    final s = await _state(tester, scenario: 'over');
+    await _pumpApp(tester, s, size: const Size(360, 3000));
+    await _tab(tester, 'Report');
+    await _shot(tester, '20_report_not_sent');
+    await _tapText(tester, 'Send report for sign-off');
+    expect(find.text('Seal and send'), findsOneWidget);
+    await _shot(tester, '21_send_dialog');
+    await _tapText(tester, 'Not yet');
+    expect(find.text('Seal and send'), findsNothing);
+  }, skip: !_enabled);
+
+  testWidgets('report cannot be sent with a trip open', (tester) async {
+    final s = await _state(tester, scenario: 'open');
+    await _pumpApp(tester, s, size: const Size(360, 3000));
+    await _tab(tester, 'Report');
+    expect(find.textContaining('still open'), findsWidgets);
+    await _shot(tester, '22_report_blocked');
+  }, skip: !_enabled);
+
+  testWidgets('report with the Block Integrator', (tester) async {
+    final s = await _staffWithReport(tester, []);
+    await _pumpApp(tester, s, size: const Size(360, 3000));
+    await _tab(tester, 'Report');
+    expect(find.text('With Block Integrator'), findsWidgets);
+    expect(find.text('Send the file again'), findsWidgets);
+    await _shot(tester, '23_report_sent');
+  }, skip: !_enabled);
+
+  testWidgets('report with the District Integrator', (tester) async {
+    final s = await _staffWithReport(tester, ['bi', 'acc']);
+    await _pumpApp(tester, s, size: const Size(360, 3000));
+    await _tab(tester, 'Report');
+    expect(find.text('With District Integrator'), findsWidgets);
+    await _shot(tester, '24_report_progress');
+  }, skip: !_enabled);
+
+  testWidgets('report sent back', (tester) async {
+    final s = await _staffWithReport(tester, ['bi-return']);
+    await _pumpApp(tester, s, size: const Size(360, 3000));
+    await _tab(tester, 'Report');
+    expect(find.text('Send again'), findsWidgets);
+    await _shot(tester, '25_report_returned');
+    await _tab(tester, 'Today');
+    expect(find.text('Returned'), findsWidgets);
+  }, skip: !_enabled);
+
+  testWidgets('report approved', (tester) async {
+    final s = await _staffWithReport(tester, ['bi', 'acc', 'di']);
+    await _pumpApp(tester, s, size: const Size(360, 3000));
+    await _tab(tester, 'Report');
+    expect(find.text('Approved'), findsWidgets);
+    expect(find.text('Share the approved copy'), findsWidgets);
+    await _shot(tester, '26_report_approved');
+  }, skip: !_enabled);
+
+  testWidgets('a month that was sent takes no new trips', (tester) async {
+    final s = await _staffWithReport(tester, []);
+    expect(s.monthLocked(currentMonth()), isTrue);
+    await _pumpApp(tester, s);
+    await _tapText(tester, 'Start a trip');
+    expect(find.textContaining('is closed'), findsOneWidget);
+    await _shot(tester, '27_form_month_closed');
+  }, skip: !_enabled);
+
+  testWidgets('review inbox', (tester) async {
+    final s = await _reviewerWithReports(tester, _diPerson, [
+      ['bi', 'acc'],
+      ['bi'],
+    ]);
+    await _pumpApp(tester, s, size: _tall);
+    await _tab(tester, 'Review');
+    expect(find.byType(ReportTile), findsNWidgets(2));
+    expect(find.text('Needs your sign-off'), findsOneWidget);
+    await _shot(tester, '28_review_inbox');
+  }, skip: !_enabled);
+
+  testWidgets('review and sign as Block Integrator', (tester) async {
+    final s = await _reviewerWithReports(tester, _biPerson, [[]]);
+    await _pumpApp(tester, s);
+    await _tab(tester, 'Review');
+    await tester.tap(find.byType(ReportTile).first);
+    await tester.pumpAndSettle();
+    await _resize(tester, const Size(360, 4200));
+    await _settleReal(tester);
+    expect(find.text('Every check passed'), findsOneWidget);
+    expect(find.text('Checked, send to Accountant'), findsWidgets);
+    await _shot(tester, '29_review_bi');
+
+    // Sending back needs a reason.
+    await _tapText(tester, 'Send back to Jitendra');
+    expect(find.text('Write why you are sending it back.'), findsOneWidget);
+    await tester.pump(const Duration(seconds: 5));
+    await tester.pumpAndSettle();
+
+    // Signing asks first.
+    await _tapText(tester, 'Checked, send to Accountant');
+    expect(find.text('Mark as checked?'), findsOneWidget);
+    await _shot(tester, '30_sign_dialog');
+    await _tapText(tester, 'Not yet');
+    expect(find.text('Mark as checked?'), findsNothing);
+  }, skip: !_enabled);
+
+  testWidgets('approve as District Integrator with the extra km', (tester) async {
+    final s = await _reviewerWithReports(tester, _diPerson, [
+      ['bi', 'acc'],
+    ]);
+    await _pumpApp(tester, s);
+    await _tab(tester, 'Review');
+    await tester.tap(find.byType(ReportTile).first);
+    await tester.pumpAndSettle();
+    await _resize(tester, const Size(360, 4200));
+    await _settleReal(tester);
+    expect(find.text('Approve'), findsWidgets);
+    final sw = find.byType(Switch);
+    if (sw.evaluate().isNotEmpty) {
+      await tester.ensureVisible(sw);
+      await tester.tap(sw);
+      await tester.pumpAndSettle();
+    }
+    await _shot(tester, '31_review_di');
+  }, skip: !_enabled);
+
+  testWidgets('a report trip opens read only, with its photos', (tester) async {
+    final s = await _reviewerWithReports(tester, _biPerson, [[]]);
+    await _pumpApp(tester, s, size: _tall);
+    await _tab(tester, 'Review');
+    await tester.tap(find.byType(ReportTile).first);
+    await tester.pumpAndSettle();
+    await _settleReal(tester);
+    await _tapText(tester, 'Chinchpada');
+    expect(find.text('Add a note'), findsNothing);
+    expect(find.text('Odometer'), findsOneWidget);
+    await _shot(tester, '32_report_trip_detail');
+  }, skip: !_enabled);
+
+  testWidgets('review in the dark and at large text', (tester) async {
+    final s = await _reviewerWithReports(tester, _biPerson, [[]]);
+    await _pumpApp(tester, s, mode: ThemeMode.dark, textScale: 1.3);
+    await _tab(tester, 'Review');
+    await _shot(tester, '33_dark_review_inbox');
+    await tester.tap(find.byType(ReportTile).first);
+    await tester.pumpAndSettle();
+    await _resize(tester, const Size(360, 5200));
+    await _settleReal(tester);
+    await _shot(tester, '34_dark_review_report');
   }, skip: !_enabled);
 }

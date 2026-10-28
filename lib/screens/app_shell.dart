@@ -9,6 +9,7 @@ import '../ui/theme.dart';
 import '../ui/widgets.dart';
 import 'log_screen.dart';
 import 'report_screen.dart';
+import 'review_screen.dart';
 import 'settings_screen.dart';
 import 'setup_screen.dart';
 import 'today_screen.dart';
@@ -253,37 +254,6 @@ class _Header extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-/// Reviewer screen. Reviewing submitted reports is not in this version of the app.
-class ReviewScreen extends StatelessWidget {
-  const ReviewScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView(
-      padding: pagePadding(context),
-      children: [
-        Text('Review', style: Theme.of(context).textTheme.headlineSmall),
-        const SizedBox(height: 16),
-        Surface(
-          child: Column(
-            children: [
-              const EmptyState(
-                icon: AppIcons.review,
-                title: 'Nothing to review here yet',
-                body: 'Checking, verifying and approving staff reports is not in this version of the app. '
-                    'Your own trips and report work as usual.',
-              ),
-              const Divider(),
-              const SizedBox(height: 16),
-              const ApprovalChain(done: 0),
-            ],
-          ),
-        ),
-      ],
     );
   }
 }
