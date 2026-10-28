@@ -467,7 +467,7 @@ class _ReportReviewScreenState extends State<ReportReviewScreen> {
                   style: tt.bodyMedium?.copyWith(color: cs.error),
                 );
               }
-              if (myTurn && myStep != null) return _signPanel(p, myStep);
+              if (myTurn) return _signPanel(p, myStep);
               return _afterPanel(p);
             },
           ),

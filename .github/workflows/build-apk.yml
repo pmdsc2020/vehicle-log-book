@@ -60,7 +60,7 @@ jobs:
           export FALLBACK_FONT=$(fc-match -f '%{file}' 'DejaVu Sans' 2>/dev/null || echo /usr/share/fonts/truetype/dejavu/DejaVuSans.ttf)
           echo "icons font: $MATERIAL_ICONS"
           echo "fallback font: $FALLBACK_FONT"
-          flutter test 2>&1 | tee test.log
+          flutter test --reporter expanded 2>&1 | tee test.log
 
       # TEMPORARY (feature branch only): publish screen images so they can be looked at.
       - name: Publish screen images
@@ -92,7 +92,7 @@ jobs:
         run: |
           if [ -f test.log ]; then
             echo "::notice title=flutter test::$(tail -3 test.log | tr '\n' ' ' | cut -c1-300)"
-            msg=$( { grep -E "Error:|error:|Expected:|Actual:|Some tests failed|isn't defined|isn't a|\[E\]" test.log | cut -c1-260 | head -20; grep -E -A2 "overflowed by|relevant error-causing widget" test.log | cut -c1-260 | head -30; } || true )
+            msg=$( { grep -E -A8 "\[E\]" test.log | cut -c1-240 | head -70; grep -E "Error:|error:|isn't defined|isn't a" test.log | cut -c1-240 | head -10; grep -E -A2 "overflowed by|relevant error-causing widget" test.log | cut -c1-240 | head -30; } || true )
             if [ -n "$msg" ]; then
               msg=$(printf '%s' "$msg" | sed 's/%/%25/g' | sed ':a;N;$!ba;s/\n/%0A/g')
               echo "::error title=flutter test::$msg"
