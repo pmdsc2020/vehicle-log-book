@@ -446,7 +446,7 @@ class _ReportReviewScreenState extends State<ReportReviewScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                ApprovalChain(done: st.done, returnedAt: st.returnedAt),
+                ApprovalChain(done: st.done, returnedAt: st.returnedAt, firstLabel: 'Staff'),
                 const SizedBox(height: 18),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 6),

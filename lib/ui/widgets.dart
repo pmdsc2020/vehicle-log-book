@@ -792,9 +792,12 @@ class _DotsPainter extends CustomPainter {
 class ApprovalChain extends StatelessWidget {
   final int done;
   final int? returnedAt;
-  const ApprovalChain({super.key, required this.done, this.returnedAt});
 
-  static const _who = ['You', 'Block Integrator', 'Accountant', 'District Integrator'];
+  /// What the first step is called. The staff member sees "You"; a reviewer sees "Staff".
+  final String firstLabel;
+  const ApprovalChain({super.key, required this.done, this.returnedAt, this.firstLabel = 'You'});
+
+  static const _who = ['', 'Block Integrator', 'Accountant', 'District Integrator'];
   static const _what = ['submit', 'checks', 'verifies', 'approves'];
 
   @override
@@ -817,7 +820,7 @@ class ApprovalChain extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  _who[i],
+                  i == 0 ? firstLabel : _who[i],
                   style: tt.labelMedium?.copyWith(fontWeight: i == done ? FontWeight.w700 : FontWeight.w500),
                   textAlign: TextAlign.center,
                 ),

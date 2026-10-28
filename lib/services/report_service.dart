@@ -393,7 +393,14 @@ PackageCheck verifyReport(ReportPackage p, Map<String, String> actualPhotos, {Re
   } else if (badSeals.isNotEmpty) {
     lines.add(CheckLine(CheckState.bad, '${badSeals.length} of ${p.trips.length} trips do not match their seal', _someOf(badSeals)));
   } else {
-    lines.add(CheckLine(CheckState.ok, 'All ${p.trips.length} trips match their seals', 'None was edited after it was locked.'));
+    final cancelled = p.trips.where((t) => t.status == 'cancelled').length;
+    lines.add(CheckLine(
+      CheckState.ok,
+      'All ${p.trips.length} entries match their seals',
+      cancelled > 0
+          ? '${p.trips.length - cancelled} trips and $cancelled cancelled. None was edited after it was locked.'
+          : 'None was edited after it was locked.',
+    ));
   }
   if (wrongMonth.isNotEmpty) {
     lines.add(CheckLine(CheckState.bad, 'Trips from another month are in this report', _someOf(wrongMonth)));
