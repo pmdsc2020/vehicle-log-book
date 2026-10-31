@@ -255,3 +255,27 @@ test('figures print the Indian way', () => {
   assert.equal(V.fmtMonthLong('2026-10'), 'October 2026');
   assert.equal(V.shiftMonth('2026-01', -1), '2025-12');
 });
+
+test('every report file in the fixtures passes the desktop checks, including the one signed in the browser', async () => {
+  const names = fs.readdirSync(FIX).filter((f) => f.endsWith('.vlbreport')).map((f) => f.replace('.vlbreport', ''));
+  assert.ok(names.length >= 16, 'fixtures are there');
+  for (const n of names) {
+    const f = await open(n);
+    assert.ok(f.check.ok, n + ': ' + problems(f.check).join(' | '));
+  }
+  const ui = await open('web_ui_approved');
+  assert.equal(V.statusOf(ui.report).stage, 'approved');
+  assert.deepEqual(ui.report.signoffs.slice(1).map((s) => s.designation), ['Block Integrator', 'Accountant', 'District Integrator']);
+  assert.equal(V.payableKm(ui.report), 675);
+  assert.equal(V.payableAmount(ui.report), 2700);
+});
+
+test('plain JSON written for places that cannot save .vlbreport opens again with the same sign-offs', async () => {
+  const f = await V.decodeReportFile(load('a_sent'));
+  const signed = await V.signReport(f.report, bi, { decision: 'forward', remarks: 'ok', at: '2026-10-29T05:00:00.000Z' });
+  const text = V.encodeReportJson(signed, f.raw, f.photos);
+  const back = await V.openReportFile(new TextEncoder().encode(text));
+  assert.ok(back.check.ok, problems(back.check).join(' | '));
+  assert.equal(back.report.signoffs.length, 2);
+  assert.equal(back.report.signoffs[1].hash, signed.signoffs[1].hash);
+});

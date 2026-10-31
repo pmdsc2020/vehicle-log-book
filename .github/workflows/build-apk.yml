@@ -71,6 +71,14 @@ jobs:
           code=$?
           exit $code
 
+      # The ready-to-open page (web/vehicle-log-reviewer.html) must be built from web/src.
+      - name: Desktop reviewer page is up to date
+        if: always()
+        continue-on-error: true
+        run: |
+          python3 web/build.py
+          git diff --exit-code -- web/vehicle-log-reviewer.html
+
       - name: Upload screen images
         if: always()
         uses: actions/upload-artifact@v4

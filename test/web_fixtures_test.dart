@@ -24,7 +24,7 @@ void main() {
       : <String>[];
 
   test('the fixtures are there', () {
-    expect(names.length, greaterThanOrEqualTo(15));
+    expect(names.length, greaterThanOrEqualTo(16));
   });
 
   group('every report file passes the phone checks', () {
@@ -47,6 +47,20 @@ void main() {
       expect(approvalOf(r)!.excessApproved, isTrue);
       expect(payableKm(r), 600);
       expect(payableAmount(r), 2400.0);
+    });
+
+    test('signed in the browser: a sample report through all three people', () {
+      final r = _open('web_ui_approved').report;
+      expect(statusOf(r).stage, ReportStage.approved);
+      expect(r.staff.name, 'Sample Staff');
+      expect(r.signoffs.map((s) => s.role).toList(), ['staff', 'bi', 'acc', 'di']);
+      expect(r.signoffs.map((s) => s.designation).toList().sublist(1), ['Block Integrator', 'Accountant', 'District Integrator']);
+      expect(r.signoffs[1].remarks, contains('मीटर'));
+      expect(r.summary.km, 675);
+      expect(r.summary.excess, 175);
+      expect(approvalOf(r)!.excessApproved, isTrue);
+      expect(payableKm(r), 675);
+      expect(payableAmount(r), 2700.0);
     });
 
     test('approved, only within the limit', () {

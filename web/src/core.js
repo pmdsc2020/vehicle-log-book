@@ -856,6 +856,11 @@
     return gzip(new TextEncoder().encode(text));
   }
 
+  /** The same file as plain JSON text (no compression), for places that cannot save a .vlbreport. The phone opens it too. */
+  function encodeReportJson(report, raw, photos) {
+    return JSON.stringify(reportToFileJson(report, raw, photos));
+  }
+
   function reportFileName(p) {
     const who = p.staff.name.trim().replace(/[^A-Za-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
     return 'VehicleLog_' + p.month + '_' + (who === '' ? 'staff' : who) + '_r' + p.revision + '_s' + p.signoffs.length + '.' + FILE_EXT;
@@ -962,7 +967,7 @@
     coreOf, hashTrip, sealIntact, reportContentHash, signoffHash,
     summarise, tripFlags, statusOf, stageLabel, approvalOf, payableKm, payableAmount,
     signReport, verifyReport, reviewAids, tripOrder, readingOf,
-    decodeReportFile, hashPhotos, openReportFile, encodeReportFile, reportToFileJson, reportFileName, reportShareText,
+    decodeReportFile, hashPhotos, openReportFile, encodeReportFile, encodeReportJson, reportToFileJson, reportFileName, reportShareText,
     relate, sealTrip, buildReport, reportToRaw, base64ToBytes, normReport, normTrip,
   };
 });

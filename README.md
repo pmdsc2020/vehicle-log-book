@@ -54,6 +54,26 @@ Limits to know about:
 Code: `lib/models/report.dart` (file format), `lib/services/report_service.dart` (seal, checks, signing, file packing),
 `lib/screens/signoff_panel.dart` (staff side), `lib/screens/review_screen.dart` (reviewer side).
 
+## Desktop reviewer (check the sent reports on a computer)
+
+Checking trips and odometer photos on a phone screen is slow. `web/vehicle-log-reviewer.html` is a single page that
+opens the same `.vlbreport` files on a computer, with the same checks, and lets the Block Integrator, Accountant
+and District Integrator sign or send back. It has no server and no install: open the file in Chrome or Edge.
+
+1. Save the `.vlbreport` file from WhatsApp or email on the computer.
+2. Open `vehicle-log-reviewer.html`, set your name and role (top right), then drop the file on the page.
+3. Read the checks, tick each trip as you go, open the odometer photos large (zoom, move, rotate, arrow keys).
+4. Sign (or send back with a reason), tap *Save the signed file* and send it to the next person. The phone app opens
+   the signed file too, and the next person can sign on the phone or on a computer.
+
+What it checks is exactly what the phone checks (seal of every trip, chain, photo fingerprints, figures, order of
+sign-offs); `web/test/core.test.js` runs the page's code against files made by the phone code, and
+`test/web_fixtures_test.dart` runs the phone code against files signed in the browser. A file that fails its checks
+cannot be forwarded. Reports are kept in the browser on that computer only; remove them when done.
+
+To change it, edit `web/src/` and run `python3 web/build.py` (rebuilds the page; CI checks it is up to date).
+`node --test web/test/core.test.js` for the logic, `node web/test/e2e.js` for a browser click-through (needs Playwright).
+
 ## Design
 
 The logo is a map pin whose hole is a keyhole (the entry locks), with an odometer under it.
