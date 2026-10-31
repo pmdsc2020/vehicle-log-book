@@ -82,6 +82,17 @@ jobs:
             fi
           fi
 
+      # TEMPORARY: print the report files made by test/web_vectors_test.dart so the desktop reviewer can be
+      # tested against files made by the phone code.
+      - name: Show report files for the desktop tests
+        if: always()
+        continue-on-error: true
+        run: |
+          [ -f test.log ] || exit 0
+          grep -o 'VEC [a-z0-9_]* [A-Za-z0-9+/=]*' test.log | sort -u | while read -r _ name data; do
+            echo "::notice title=VEC $name::$data"
+          done
+
       - name: Build APK
         run: |
           set -o pipefail
