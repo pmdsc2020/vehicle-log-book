@@ -61,6 +61,16 @@ jobs:
           echo "fallback font: $FALLBACK_FONT"
           flutter test --reporter expanded 2>&1 | tee test.log
 
+      # The desktop reviewer (web/): its checks must give the same answers as the phone code.
+      - name: Desktop reviewer tests
+        if: always()
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          node --test web/test/core.test.js 2>&1 | tee web-test.log
+          code=$?
+          exit $code
+
       - name: Upload screen images
         if: always()
         uses: actions/upload-artifact@v4
@@ -82,16 +92,17 @@ jobs:
             fi
           fi
 
-      # TEMPORARY: print the report files made by test/web_vectors_test.dart so the desktop reviewer can be
-      # tested against files made by the phone code.
-      - name: Show report files for the desktop tests
+      - name: Show desktop reviewer test results on the run summary
         if: always()
-        continue-on-error: true
         run: |
-          [ -f test.log ] || exit 0
-          grep -o 'VEC [a-z0-9_]* [A-Za-z0-9+/=]*' test.log | sort -u | while read -r _ name data; do
-            echo "::notice title=VEC $name::$data"
-          done
+          if [ -f web-test.log ]; then
+            echo "::notice title=desktop reviewer tests::$(grep -E '^# (tests|pass|fail)' web-test.log | tr '\n' ' ')"
+            msg=$( { grep -E -B2 -A12 '^not ok' web-test.log | cut -c1-240 | head -60; } || true )
+            if [ -n "$msg" ]; then
+              msg=$(printf '%s' "$msg" | sed 's/%/%25/g' | sed ':a;N;$!ba;s/\n/%0A/g')
+              echo "::error title=desktop reviewer tests::$msg"
+            fi
+          fi
 
       - name: Build APK
         run: |
